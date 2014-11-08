@@ -1,15 +1,27 @@
+globals[solarcellpower]
+
 breed [solarcells solarcell]
 breed [producers producer]
 breed [workers worker]
 breed [launchers launcher]
 patches-own[
+  cluster 
   regolith
   paver?
   radio-a
+  poweravailable
   ]
 
+producers-own[
+  pregolith
+  ]
+workers-own[
+  wregolith
+  wcharge
+  ]
 to setup
 clear-all
+set solarcellpower 1
 setup-patches
 set-default-shape solarcells "die 6"
 ;;set-default-shape producers "factory"
@@ -61,8 +73,10 @@ to setup-seed[ x y]
   
 end
 to setup-regolith
+  set cluster nobody
   set regolith random-float 10
   set paver? false
+  set poweravailable 0
 end
 
 
@@ -74,6 +88,79 @@ to recolor-patches
   
 end
 
+to find-clusters
+;;reset everything
+ask patches [
+  set cluster nobody
+  set plabel ""
+  ]
+
+loop[
+  ;; pick a random patch that isn't in a cluster yet
+  let seed one-of patches with[(cluster = nobody) and (paver? = true) ]
+  ;; if we can't find one, then we're done!
+    if seed = nobody
+    [ ;;show-clusters
+      stop ]
+    ;; otherwise, make the patch the "leader" of a new cluster
+    ;; by assigning itself to its own cluster, then call
+    ;; grow-cluster to find the rest of the cluster
+    ask seed
+    [ set cluster self
+      grow-cluster ]
+  ]
+end
+
+to grow-cluster  ;; patch procedure
+  ask neighbors4 with [(cluster = nobody) and (paver? = true)]
+  [ set cluster [cluster] of myself
+    grow-cluster ]
+ 
+end
+
+to addpower
+  ask patches 
+  [
+    set poweravailable 0
+    
+  ]
+  find-clusters
+  ask solarcells
+  [
+    solarcelladdpower
+  ]
+  ask patches [displaypoweravailable]
+end
+
+to displaypoweravailable ;;patch function
+  set plabel poweravailable
+end
+
+to solarcelladdpower
+  if paver?
+  [
+    let currentcluster cluster
+    ask patches with [cluster = currentcluster]
+    [
+      set poweravailable poweravailable + solarcellpower
+    ]
+  ]
+end
+to show-clusters
+  let counter 0
+  loop
+  [ ;; pick a random patch we haven't labeled yet
+    let p one-of patches with [plabel = ""]
+    if p = nobody
+      [ stop ]
+    ;; give all patches in the chosen patch's cluster
+    ;; the same label
+    ask p
+    [ ask patches with [cluster = [cluster] of myself]
+      [ set plabel counter ] ]
+    set counter counter + 1 ]
+end
+
 to-report randbool
   
   ifelse (random 2) = 1
@@ -82,10 +169,10 @@ to-report randbool
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-715
-536
+190
+16
+695
+542
 16
 16
 15.0
@@ -132,6 +219,23 @@ BUTTON
 51
 NIL
 setup\n
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+32
+123
+152
+156
+NIL
+find-clusters
 NIL
 1
 T
