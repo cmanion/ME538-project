@@ -1,4 +1,14 @@
-globals[solarcellpower]
+globals[
+  solarcellpower
+  producerpowerneededperstep
+  workerbatterycapacity
+  workerchargetomove ;;should eventually be proportional to how much it is carrying
+  workerregolithcapacity ;; amount of regolith a worker can hold
+  productcostinformation ;;information on how much a product cost to make for a producer
+  producerregolithcapacity ;;amount of regolith a producer can store
+  producerproductcapacity ;;amount of finished products a producer can store
+  
+  ]
 
 breed [solarcells solarcell]
 breed [producers producer]
@@ -14,6 +24,9 @@ patches-own[
 
 producers-own[
   pregolith
+  turnsleft
+  productid
+  capacity
   ]
 workers-own[
   wregolith
@@ -21,7 +34,7 @@ workers-own[
   ]
 to setup
 clear-all
-set solarcellpower 1
+setglobals
 setup-patches
 set-default-shape solarcells "die 6"
 ;;set-default-shape producers "factory"
@@ -33,6 +46,19 @@ setup-seed 0 0
 recolor-all
 
 end
+to setglobals
+  set solarcellpower 1
+  set producerproductcapacity 4 ;; producers can store 4 solar cells or pavers, or 1 of anything else
+  set productcostinformation
+  (list
+    ;; power_cost regolith_cost turns capacity_cost
+    (list 1 1 3 1);;paver cost
+    (list 1 1 5 1);;solar cell cost
+    (list 1 2 10 4);;worker cost
+    (list 1 5 20 4);;producer cost
+    (list 1 6 25 4);;launcher cost
+  )
+end
 
 to setup-patches
   ask patches
@@ -42,6 +68,14 @@ to setup-patches
   ]
   
 end
+
+to setup-regolith
+  set cluster nobody
+  set regolith random-float 10
+  set paver? false
+  set poweravailable 0
+end
+
 to recolor-all
   ask patches
   [recolor-patches]
@@ -67,19 +101,49 @@ to setup-seed[ x y]
    set color red
    setxy x y  
   ]
-  
-  
-  
-  
-end
-to setup-regolith
-  set cluster nobody
-  set regolith random-float 10
-  set paver? false
-  set poweravailable 0
+    
 end
 
+to produceproduct
+  ;;function for the producer to produce stuff
+  ;; power_cost regolith_cost turns capacity_cost
+  let costvector item productid productcostinformation
+  let powerrequired item 0 costvector
+  let totregolith item 1 costvector
+  let turns item 2 costvector
+ 
+  let regolithperturn (totregolith / turns)
+  if turnsleft > 0
+  [
+    if pregolith > regolithperturn
+    [
+      
+      if usepower powerrequired
+      [
+        set pregolith pregolith - regolithperturn
+        set turnsleft turnsleft - 1
+      ]
+    ]
+  
+  ]
+end
 
+to-report usepower [amount]
+  if paver?
+  [
+    if poweravailable > amount
+    [
+      let currentcluster cluster
+      ask patches with [cluster = currentcluster]
+      [
+        set poweravailable poweravailable - amount
+        
+      ]
+      report true
+    ]
+  ]
+  report false
+end
 
 to recolor-patches
   ifelse paver?
@@ -133,7 +197,12 @@ to addpower
 end
 
 to displaypoweravailable ;;patch function
-  set plabel poweravailable
+  ifelse paver?[
+    set plabel poweravailable
+  ]
+  [
+    set plabel ""
+  ]
 end
 
 to solarcelladdpower
@@ -235,7 +304,7 @@ BUTTON
 152
 156
 NIL
-find-clusters
+addpower
 NIL
 1
 T
