@@ -28,11 +28,13 @@ producers-own[
   productid
   capacity
   productstack
+  idstack ;the IDs of the products being held
   ]
 workers-own[
   wregolith
   wcharge
-  wheld
+  itemheld
+  carryingpaver?
   ]
 to setup
 clear-all
@@ -148,6 +150,7 @@ to produceproduct
      if productid = 0
      [
        set productstack lput 1 productstack ;put paver on the stack of products made
+       set idstack lput productid idstack
        set productid -1
        set capacity capacity - capacitycost ;decrease the amount of storage space remaining 
      ]
@@ -165,6 +168,7 @@ to produceproduct
          
        ]
      ]
+     set idstack lput productid idstack
      set productid -1
      set capacity capacity - capacitycost  
      ]
@@ -182,6 +186,7 @@ to produceproduct
          
        ]
      ]
+     set idstack lput productid idstack
      set productid -1
      set capacity capacity - capacitycost  
      ]
@@ -199,6 +204,7 @@ to produceproduct
          
        ]
      ]
+     set idstack lput productid idstack
      set productid -1
      set capacity capacity - capacitycost  
      ]
@@ -254,6 +260,71 @@ to startproducingproduct[toproduce]
    ]
    
 end
+to pickupproductfromproducer
+  if (not carryingpaver?) and (itemheld = nobody); ifthe worker can carry stuff
+  [
+    ask one-of producers-here with[(not hidden?) and (capacity < producerproductcapacity)] ;switch to producer
+    [
+      let costvector item (last idstack) productcostinformation
+      let capacitycost item 3 costvector
+      let product last productstack  ;get the product on the top of the stack
+      ;;let lastitem (length productstack - 1)
+      set productstack remove-item (lastitem productstack) productstack;; remove the item from the product stack
+     ; show productstack
+      
+      set capacity (capacity + capacitycost)
+      set idstack remove-item (lastitem idstack) idstack; remove the id 
+      ask myself; switch back to worker
+      [
+          if product = 1
+          [
+            set carryingpaver? true
+          ]
+          set itemheld product  
+      ]
+    ]
+
+  ]
+end
+
+to putdown
+
+    ;function for the workers to put down items
+    ifelse (not paver?)[
+      if (itemheld = 1)
+      [
+        set carryingpaver? false
+        set paver? true
+        set pcolor yellow
+        set itemheld nobody
+      ]
+    ]
+    [
+    let scount count solarcells-here with [not hidden?]
+    let pcount count producers-here with [not hidden?]
+    let lcount count launchers-here with [not hidden?]
+    if (scount = 0) and (pcount = 0) and (lcount = 0)
+    [
+        if is-turtle? itemheld
+        [
+          
+          ask itemheld [st] ;show the item
+          set itemheld nobody
+        ]
+    ] 
+    ]
+
+  
+end 
+
+to moveworker [dir]
+  set heading dir * 45
+  ifelse (dir mod 2) = 1
+  [fd sqrt 2]
+  [fd 1]
+  if is-turtle? itemheld
+  [ask itemheld[move-to myself]]; move item with turtle
+end
 to-report usepower [amount]
   if paver?
   [
@@ -276,13 +347,15 @@ to initializeproducer
     set color green
     set productid -1
     set productstack []
+    set idstack []
     set capacity producerproductcapacity
     set pregolith 20; REMOVE THIS FOR DEBUGGING ONLY!
 end
 
 to initializeworker
-  
+  set itemheld nobody
   set color red
+  set carryingpaver? false
 end
 
 to initializesolarcell
@@ -385,6 +458,11 @@ to-report randbool
   [report true]
   [report false]
 end
+
+to-report lastitem [a_list]
+  ;gets the index of the last item in a list
+  report (length a_list - 1)
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 201
@@ -437,7 +515,7 @@ BUTTON
 106
 NIL
 go
-NIL
+T
 1
 T
 OBSERVER
