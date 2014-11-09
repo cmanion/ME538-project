@@ -2,6 +2,7 @@ globals[
   solarcellpower
   producerpowerneededperstep
   workerbatterycapacity
+  workerchargerate
   workerchargetomove ;;should eventually be proportional to how much it is carrying
   workerregolithcapacity ;; amount of regolith a worker can hold
   productcostinformation ;;information on how much a product cost to make for a producer
@@ -63,6 +64,9 @@ end
 to setglobals
   set solarcellpower 1
   set producerproductcapacity 4 ;; producers can store 4 solar cells or pavers, or 1 of anything else
+  set workerbatterycapacity 4
+  set workerchargerate 0.25
+  
   set productcostinformation
   (list
     ;; power_cost regolith_cost turns capacity_cost
