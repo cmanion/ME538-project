@@ -27,25 +27,37 @@ producers-own[
   turnsleft
   productid
   capacity
+  productstack
   ]
 workers-own[
   wregolith
   wcharge
+  wheld
   ]
 to setup
 clear-all
 setglobals
 setup-patches
 set-default-shape solarcells "die 6"
-;;set-default-shape producers "factory"
-set-default-shape producers "square"
-set-default-shape workers "default"
-;;set-default-shape workers "bulldozer top"
+set-default-shape producers "factory"
+;;set-default-shape producers "square"
+;;set-default-shape workers "default"
+set-default-shape workers "bulldozer top"
 set-default-shape launchers "container"
 setup-seed 0 0
 recolor-all
 
 end
+
+to go
+ addpower
+ ask producers with [not hidden?]
+ [
+   produceproduct
+ ]
+ ask patches [displaypoweravailable]
+end
+
 to setglobals
   set solarcellpower 1
   set producerproductcapacity 4 ;; producers can store 4 solar cells or pavers, or 1 of anything else
@@ -54,7 +66,7 @@ to setglobals
     ;; power_cost regolith_cost turns capacity_cost
     (list 1 1 3 1);;paver cost
     (list 1 1 5 1);;solar cell cost
-    (list 1 2 10 4);;worker cost
+    (list 1 2 10 4);;worker cost, workers drive off cell
     (list 1 5 20 4);;producer cost
     (list 1 6 25 4);;launcher cost
   )
@@ -92,14 +104,17 @@ to setup-seed[ x y]
   ]
   create-producers 1 
   [
-    set color green
+    
     setxy x y
+    initializeproducer
     
   ]
   create-workers 1
   [
-   set color red
-   setxy x y  
+   setxy x y
+   set heading 0
+   initializeworker
+  
   ]
     
 end
@@ -107,27 +122,138 @@ end
 to produceproduct
   ;;function for the producer to produce stuff
   ;; power_cost regolith_cost turns capacity_cost
-  let costvector item productid productcostinformation
-  let powerrequired item 0 costvector
-  let totregolith item 1 costvector
-  let turns item 2 costvector
+ if productid > -1 [
+   let costvector item productid productcostinformation
+   let powerrequired item 0 costvector
+   let totregolith item 1 costvector
+   let turns item 2 costvector
+   let capacitycost item 3 costvector
  
-  let regolithperturn (totregolith / turns)
-  if turnsleft > 0
-  [
-    if pregolith > regolithperturn
-    [
+   let regolithperturn (totregolith / turns)
+   if turnsleft > 0
+   [
+     if pregolith > regolithperturn ;; if there is enough regolith to make product
+     [
       
-      if usepower powerrequired
-      [
-        set pregolith pregolith - regolithperturn
-        set turnsleft turnsleft - 1
-      ]
-    ]
+       if usepower powerrequired ;;if there is enough power
+       [
+         set pregolith pregolith - regolithperturn
+         set turnsleft turnsleft - 1
+       ]
+     ]
   
+   ]
+   if turnsleft = 0
+   [
+     if productid = 0
+     [
+       set productstack lput 1 productstack ;put paver on the stack of products made
+       set productid -1
+       set capacity capacity - capacitycost ;decrease the amount of storage space remaining 
+     ]
+     if productid = 1
+     [
+     hatch-solarcells 1 ;;this is a bit of a complicated function here, calling myself is calling the producer and telling it to added the solar cell(self) it created to the product stack
+     [
+       initializesolarcell
+       ht; hide
+       let producttoadd self
+       ask myself 
+       [
+         
+         set productstack lput producttoadd productstack ;;add
+         
+       ]
+     ]
+     set productid -1
+     set capacity capacity - capacitycost  
+     ]
+     if productid = 3
+     [
+     hatch-producers 1 
+     [
+       initializeproducer
+       ht; hide
+       let producttoadd self
+       ask myself 
+       [
+         
+         set productstack lput producttoadd productstack ;;add
+         
+       ]
+     ]
+     set productid -1
+     set capacity capacity - capacitycost  
+     ]
+     if productid = 4
+     [
+     hatch-launchers 1 ;;this is a bit of a complicated function here, calling myself is calling the producer and telling it to added the solar cell(self) it created to the product stack
+     [
+       initializelauncher
+       ht; hide
+       let producttoadd self
+       ask myself 
+       [
+         
+         set productstack lput producttoadd productstack ;;add
+         
+       ]
+     ]
+     set productid -1
+     set capacity capacity - capacitycost  
+     ]
+     if productid = 2 ;making a worker, workers automatically drive off
+     [
+       hatch-workers 1
+       [
+         initializeworker
+         fd 1 
+       ]
+      set productid -1
+      ;;workers have no capacity cost because they drive off
+     ]      
+   ]
   ]
 end
 
+to tellproducerstomakepaver
+  ask producers with [not hidden?]
+  [startproducingproduct 0]
+
+end
+
+to tellproducerstomakesolarcell
+  ask producers with [not hidden?]
+  [startproducingproduct 1]
+
+end
+
+to startproducingproduct[toproduce]
+   ;;start producing a product
+   ;;might make this a bool
+   
+   if (toproduce > -1) and (productid = -1 )[ ;; if we tell the producer to produce something and it is not producing anything
+      let costvector item toproduce productcostinformation
+      let powerrequired item 0 costvector
+      let totregolith item 1 costvector
+      let turns item 2 costvector
+      let regolithperturn (totregolith / turns)
+      let capacitycost item 3 costvector
+      
+      if (capacity - capacitycost) >= 0; if there is enough space to strore an output product
+      [
+        ;if pregolith > regolithperturn ; if there is enough regolith to make the product honestly we don't need to do this
+        ;[
+          ;if powerrequired > poweravailable ; if there is enough power
+          ;[;
+            set turnsleft turns
+            set productid toproduce
+          ;]
+        ;]
+      ]
+   ]
+   
+end
 to-report usepower [amount]
   if paver?
   [
@@ -145,6 +271,69 @@ to-report usepower [amount]
   report false
 end
 
+to initializeproducer
+    set heading 0
+    set color green
+    set productid -1
+    set productstack []
+    set capacity producerproductcapacity
+    set pregolith 20; REMOVE THIS FOR DEBUGGING ONLY!
+end
+
+to initializeworker
+  
+  set color red
+end
+
+to initializesolarcell
+  set color blue
+end
+
+to initializelauncher
+  set color cyan
+  ;eventually add more stuff here as we make it more complicated
+end
+
+to grow-cluster  ;; patch procedure
+  ask neighbors4 with [(cluster = nobody) and (paver? = true)]
+  [ set cluster [cluster] of myself
+    grow-cluster ]
+ 
+end
+
+to addpower
+  ask patches 
+  [
+    set poweravailable 0
+    
+  ]
+  find-clusters
+  ask solarcells with[not hidden?]
+  [
+    solarcelladdpower
+  ]
+  
+end
+
+to solarcelladdpower
+  if paver?
+  [
+    let currentcluster cluster
+    ask patches with [cluster = currentcluster]
+    [
+      set poweravailable poweravailable + solarcellpower
+    ]
+  ]
+end
+
+to displaypoweravailable ;;patch function
+  ifelse paver?[
+    set plabel poweravailable
+  ]
+  [
+    set plabel ""
+  ]
+end
 to recolor-patches
   ifelse paver?
   [set pcolor yellow]
@@ -153,6 +342,7 @@ to recolor-patches
 end
 
 to find-clusters
+;;paver cluster finding function
 ;;reset everything
 ask patches [
   set cluster nobody
@@ -172,47 +362,6 @@ loop[
     ask seed
     [ set cluster self
       grow-cluster ]
-  ]
-end
-
-to grow-cluster  ;; patch procedure
-  ask neighbors4 with [(cluster = nobody) and (paver? = true)]
-  [ set cluster [cluster] of myself
-    grow-cluster ]
- 
-end
-
-to addpower
-  ask patches 
-  [
-    set poweravailable 0
-    
-  ]
-  find-clusters
-  ask solarcells
-  [
-    solarcelladdpower
-  ]
-  ask patches [displaypoweravailable]
-end
-
-to displaypoweravailable ;;patch function
-  ifelse paver?[
-    set plabel poweravailable
-  ]
-  [
-    set plabel ""
-  ]
-end
-
-to solarcelladdpower
-  if paver?
-  [
-    let currentcluster cluster
-    ask patches with [cluster = currentcluster]
-    [
-      set poweravailable poweravailable + solarcellpower
-    ]
   ]
 end
 to show-clusters
@@ -238,10 +387,10 @@ to-report randbool
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-190
-16
-695
-542
+201
+10
+706
+536
 16
 16
 15.0
@@ -265,23 +414,6 @@ ticks
 30.0
 
 BUTTON
-25
-63
-161
-96
-NIL
-setup-patches
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
 57
 18
 130
@@ -299,12 +431,46 @@ NIL
 1
 
 BUTTON
-32
-123
-152
-156
+63
+73
+126
+106
 NIL
-addpower
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+-23
+177
+207
+211
+NIL
+tellproducerstomakepaver
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+-23
+225
+219
+259
+NIL
+tellproducerstomakesolarcell
 NIL
 1
 T
