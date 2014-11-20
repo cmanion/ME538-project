@@ -4,11 +4,12 @@ globals[
   workerbatterycapacity
   workerchargerate
   workerchargetomove ;;should eventually be proportional to how much it is carrying
+  workerchargetomine 
   workerregolithcapacity ;; amount of regolith a worker can hold
   productcostinformation ;;information on how much a product cost to make for a producer
   producerregolithcapacity ;;amount of regolith a producer can store
   producerproductcapacity ;;amount of finished products a producer can store
-  
+  workeramounttomine ;; amount worker can mine each turn
   ]
 
 breed [solarcells solarcell]
@@ -65,8 +66,11 @@ to setglobals
   set solarcellpower 1
   set producerproductcapacity 4 ;; producers can store 4 solar cells or pavers, or 1 of anything else
   set workerbatterycapacity 4
+  set workerregolithcapacity 4
+  set workerchargetomine 0.1
+  set workeramounttomine 1
   set workerchargerate 0.25
-  
+  set workerchargetomove 0.1
   set productcostinformation
   (list
     ;; power_cost regolith_cost turns capacity_cost
@@ -119,6 +123,7 @@ to setup-seed[ x y]
   [
    setxy x y
    set heading 0
+   set wcharge 1
    initializeworker
   
   ]
@@ -321,14 +326,53 @@ to putdown
   
 end 
 
+to mine
+  
+  if ((regolith > 0) and (not paver?) and (workerusecharge workerchargetomine) and (wregolith < workerregolithcapacity))
+  [
+    ;;set remaining regolith - workeramounttomine ;;
+    set regolith regolith - workeramounttomine ;; worker can mine it to be less than 0, need to change this, but it should be fine for now
+    set wregolith wregolith + workeramounttomine
+  ]
+end
+
+to-report workerusecharge [amount]
+  ;uses amount of charge from the workers battery and returns true if this amout can be provided
+  ifelse amount > wcharge
+  [
+  report false
+  ]
+  [
+    set wcharge wcharge - amount 
+    report true
+  ]
+end
+
 to moveworker [dir]
   set heading dir * 45
   ifelse (dir mod 2) = 1
-  [fd sqrt 2]
-  [fd 1]
+  [movedistanceusepower sqrt 2]
+  [movedistanceusepower 1]
   if is-turtle? itemheld
   [ask itemheld[move-to myself]]; move item with turtle
 end
+
+to movedistanceusepower [dist]
+  let powertomove dist * workerchargetomove
+  
+  ifelse powertomove > wcharge
+  [
+   ; move until all the charge is used, don't move
+   set wcharge 0
+   ;fd wcharge / workerchargetomove 
+   
+  ]
+  [
+    fd dist
+    set wcharge wcharge - powertomove
+  ]
+end
+
 to-report usepower [amount]
   if paver?
   [
@@ -392,6 +436,7 @@ to addpower
   
 end
 
+
 to solarcelladdpower
   if paver?
   [
@@ -441,6 +486,7 @@ loop[
       grow-cluster ]
   ]
 end
+
 to show-clusters
   let counter 0
   loop
