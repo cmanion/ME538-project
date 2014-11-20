@@ -12,6 +12,19 @@ globals[
   workeramounttomine ;; amount worker can mine each turn
   ]
 
+
+;NEEDS TO BE IMPLEMENTED
+;for simulator:
+;function for worker to drop regolith off at the producer
+
+;beacons
+;action: move worker in the direction of a beacon 
+;what the worker can sense
+;worker can sense the states of the cell it is on,  the regolith values on the cells surrounding it, whether the surrounding cells are pavers, whether there are producers, solar cells on surrounding cells
+;ignore other workers for now
+
+
+
 breed [solarcells solarcell]
 breed [producers producer]
 breed [workers worker]
@@ -327,6 +340,9 @@ to putdown
 end 
 
 to mine
+  ;; what needs to be done here
+  ;;modify so that worker cannot mine more regolith than it can hold
+  ;;modify so that worker cannot set regolith to negative
   
   if ((regolith > 0) and (not paver?) and (workerusecharge workerchargetomine) and (wregolith < workerregolithcapacity))
   [
@@ -358,6 +374,7 @@ to moveworker [dir]
 end
 
 to movedistanceusepower [dist]
+  ;;move the worker and use power while moving if power is available
   let powertomove dist * workerchargetomove
   
   ifelse powertomove > wcharge
