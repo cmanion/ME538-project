@@ -10,6 +10,9 @@ globals[
   producerregolithcapacity ;;amount of regolith a producer can store
   producerproductcapacity ;;amount of finished products a producer can store
   workeramounttomine ;; amount worker can mine each turn
+  producerradioaintensity;; intensity for radio beacon a ; location beacon
+  producerradiobintensity;; intensity range for regolith needed beacon
+  producerradiocintensity;; intensity range for product done beacon  
   ]
 
 
@@ -44,6 +47,9 @@ producers-own[
   capacity
   productstack
   idstack ;the IDs of the products being held
+  intensitya
+  intensityb
+  intensityc
   ]
 workers-own[
   wregolith
@@ -71,12 +77,17 @@ to go
  ask producers with [not hidden?]
  [
    produceproduct
+   producercalculatebeaconintensity
+   
  ]
+ ask patches [generate-radiofields]
  ask patches [displaypoweravailable]
+ 
 end
 
 to setglobals
   set solarcellpower 1
+  set producerregolithcapacity 20
   set producerproductcapacity 4 ;; producers can store 4 solar cells or pavers, or 1 of anything else
   set workerbatterycapacity 4
   set workerregolithcapacity 4
@@ -84,7 +95,11 @@ to setglobals
   set workeramounttomine 1
   set workerchargerate 0.25
   set workerchargetomove 0.1
+  set producerradioaintensity 10
+  set producerradiobintensity 10
+  set producerradiocintensity 10
   set productcostinformation
+  
   (list
     ;; power_cost regolith_cost turns capacity_cost
     (list 1 1 3 1);;paver cost
@@ -116,6 +131,22 @@ to recolor-all
   [recolor-patches]
 end
 
+to generate-radiofields ;;patch procedure for setting up radiofields
+  set radio-a 0
+  ask producers with[ not hidden?]
+  [set-radiofielda myself] ;; just setting up radiofield a for now
+  
+end
+
+to set-radiofielda[p] ;;turtle procedure, p is patch copied from moths example
+  let rsquared (distance p) ^ 2
+  let amount intensitya
+  ifelse rsquared = 0
+    [ set amount amount * 1000 ]
+    [ set amount amount / rsquared ]
+  ask p [ set radio-a radio-a + amount ]
+end
+
 to setup-seed[ x y]
 
   ask patch x y
@@ -143,6 +174,11 @@ to setup-seed[ x y]
     
 end
 
+to producercalculatebeaconintensity ;;producer procedure
+  set intensityb round (producerradiobintensity * ((producerregolithcapacity - pregolith) / producerregolithcapacity))
+  set intensityc round (producerradiocintensity * ((producerproductcapacity - capacity) / producerproductcapacity))
+  
+end
 to produceproduct
   ;;function for the producer to produce stuff
   ;; power_cost regolith_cost turns capacity_cost
@@ -352,6 +388,79 @@ to mine
   ]
 end
 
+to workerrecharge
+  if (( paver?) and (wcharge < workerbatterycapacity)) ;; if the worker is on a paver attempt to recharge
+  [
+      if (usepower workerchargerate)
+      [
+       set wcharge wcharge + workerchargerate  
+      ]
+  ]
+end
+to transferregolithtoproducer
+  let producerhere one-of producers-here with [(not hidden?) and (pregolith < producerregolithcapacity)] ;; get a producer here that is active 
+  let wreg wregolith ; possibly redundant
+  let regtransfer 0
+  if producerhere != nobody
+  [
+    ask producerhere
+    [
+       let regcapacityavail producerregolithcapacity - pregolith ;; amount of capacity available
+       ifelse regcapacityavail < wreg
+       [
+           set regtransfer regcapacityavail
+       ]
+       [
+           set regtransfer wreg       ;;determine amount of regolith that can be transfered to the producer
+       ]
+       set pregolith pregolith + regtransfer ;; give the producer regolith
+       ask myself
+       [
+          set wregolith wregolith - regtransfer  
+       ]
+    ]
+  ]
+  ;if patch contains producer
+  ;get producer
+  ;ask producer how much regolith it has
+  
+end
+to-report maxradiob
+  let maxproducer producerwithmaxradiob ;; find the max radio beacon value
+  let intensity 0
+  if maxproducer != nobody
+  [
+    ask maxproducer
+    [
+    set intensity intensityb
+      
+    ]
+    report intensity
+ ]
+end
+
+to-report producerwithmaxradiob
+  report max-one-of producers with [not hidden? ] [intensityb]
+  
+end
+
+to-report maxradioc
+  let intensity 0
+  let maxproducer producerwithmaxradioc ;; find the max radio beacon value
+  if maxproducer != nobody
+  [
+    ask maxproducer
+    [set intensity intensityc]
+    report intensity
+    
+ ]
+end
+
+to-report producerwithmaxradioc
+  report max-one-of producers with [not hidden? ] [intensityc]
+  
+end
+
 to-report workerusecharge [amount]
   ;uses amount of charge from the workers battery and returns true if this amout can be provided
   ifelse amount > wcharge
@@ -414,6 +523,7 @@ to initializeproducer
     set productstack []
     set idstack []
     set capacity producerproductcapacity
+    set intensitya producerradioaintensity
     set pregolith 20; REMOVE THIS FOR DEBUGGING ONLY!
 end
 
