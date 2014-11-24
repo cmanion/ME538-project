@@ -13,6 +13,8 @@ globals[
   producerradioaintensity;; intensity for radio beacon a ; location beacon
   producerradiobintensity;; intensity range for regolith needed beacon
   producerradiocintensity;; intensity range for product done beacon  
+  paversavailable
+  regolithavailable
   ]
 
 
@@ -50,6 +52,7 @@ producers-own[
   intensitya
   intensityb
   intensityc
+  idlecount
   ]
 workers-own[
   wregolith
@@ -74,6 +77,8 @@ end
 
 to go
  addpower
+ calculatepaversavailable
+ incrementproduceridlecount
  ask producers with [not hidden?]
  [
    produceproduct
@@ -98,6 +103,8 @@ to setglobals
   set producerradioaintensity 10
   set producerradiobintensity 10
   set producerradiocintensity 10
+  set paversavailable 0
+  set regolithavailable 0
   set productcostinformation
   
   (list
@@ -129,6 +136,27 @@ end
 to recolor-all
   ask patches
   [recolor-patches]
+end
+
+to calculatepaversavailable
+  set paversavailable 0
+  ask patches with [paver?]
+  [
+   if (count producers-here with [not hidden?] = 0) and (count solarcells-here with [not hidden?] = 0)
+   [
+     set paversavailable paversavailable + 1
+   ] 
+  ]
+
+end
+
+to calculateregolithavailable
+  set regolithavailable 0
+  ask producers with [not hidden?]
+  [
+  set regolithavailable regolithavailable + producerregolithcapacity - pregolith  
+    
+  ]
 end
 
 to generate-radiofields ;;patch procedure for setting up radiofields
@@ -172,6 +200,17 @@ to setup-seed[ x y]
   
   ]
     
+end
+
+to incrementproduceridlecount
+  ask producers with [not hidden?]
+  [
+  if ((capacity <= 0))
+    [
+      set idlecount idlecount + 1
+    ]
+    
+  ]
 end
 
 to producercalculatebeaconintensity ;;producer procedure
@@ -295,7 +334,7 @@ end
 to startproducingproduct[toproduce]
    ;;start producing a product
    ;;might make this a bool
-   
+set idlecount 0  
    if (toproduce > -1) and (productid = -1 )[ ;; if we tell the producer to produce something and it is not producing anything
       let costvector item toproduce productcostinformation
       let powerrequired item 0 costvector
@@ -416,7 +455,8 @@ to transferregolithtoproducer
        set pregolith pregolith + regtransfer ;; give the producer regolith
        ask myself
        [
-          set wregolith wregolith - regtransfer  
+          set wregolith wregolith - regtransfer
+            
        ]
     ]
   ]
@@ -525,6 +565,7 @@ to initializeproducer
     set capacity producerproductcapacity
     set intensitya producerradioaintensity
     set pregolith 20; REMOVE THIS FOR DEBUGGING ONLY!
+    set idlecount 0
 end
 
 to initializeworker
