@@ -213,6 +213,10 @@ to incrementproduceridlecount
   ]
 end
 
+;;producer functions
+;;the only action available to the producer is to start making a product with the start making product function
+
+
 to producercalculatebeaconintensity ;;producer procedure
   set intensityb round (producerradiobintensity * ((producerregolithcapacity - pregolith) / producerregolithcapacity))
   set intensityc round (producerradiocintensity * ((producerproductcapacity - capacity) / producerproductcapacity))
@@ -332,7 +336,7 @@ to tellproducerstomakesolarcell
 end
 
 to startproducingproduct[toproduce]
-   ;;start producing a product
+   ;;start producing a product, indicated by the product id
    ;;might make this a bool
 set idlecount 0  
    if (toproduce > -1) and (productid = -1 )[ ;; if we tell the producer to produce something and it is not producing anything
@@ -357,7 +361,10 @@ set idlecount 0
    ]
    
 end
-to pickupproductfromproducer
+
+;;worker functions
+
+to pickupproductfromproducer ;; worker function
   if (not carryingpaver?) and (itemheld = nobody); ifthe worker can carry stuff
   [
     ask one-of producers-here with[(not hidden?) and (capacity < producerproductcapacity)] ;switch to producer
@@ -465,6 +472,8 @@ to transferregolithtoproducer
   ;ask producer how much regolith it has
   
 end
+;;worker beacon sensors
+
 to-report maxradiob
   let maxproducer producerwithmaxradiob ;; find the max radio beacon value
   let intensity 0
@@ -514,10 +523,13 @@ to-report workerusecharge [amount]
 end
 
 to moveworker [dir]
+  ;;move the worker N, E, S, W or a in a diagonal, specified with an integer
   set heading dir * 45
   ifelse (dir mod 2) = 1
-  [movedistanceusepower sqrt 2]
-  [movedistanceusepower 1]
+  ;[movedistanceusepower sqrt 2]
+  ;[movedistanceusepower 1]
+  [fd sqrt 2]
+  [fd 1]
   if is-turtle? itemheld
   [ask itemheld[move-to myself]]; move item with turtle
 end
@@ -539,6 +551,7 @@ to movedistanceusepower [dist]
   ]
 end
 
+;;function for anything on a paver to use power off the grid
 to-report usepower [amount]
   if paver?
   [
@@ -556,6 +569,29 @@ to-report usepower [amount]
   report false
 end
 
+
+;to-report producerreward [ preward ]
+ ; let pa poweravailable
+  ;let globalideltime  5 ; needs to be changed
+  ;let pva 2  ;needs to be changed 
+  ;let w5 0.4 ; needs to be changed
+  ;let cr 4 ; needs to be changed 
+  
+  ;let usc 1 / (pa + 0.1)
+  ;let uw globalideltime * w5
+  ;let upav 1 / (pva + 0.1)
+  ;let upro pa / (cr + 0.1)
+  ;set preward usc + uw + upav + upro
+  
+;end
+
+;to-report workersrewards [wreward]
+ ; let ecost w2 / poweravailable
+ ; set wreward (regdelivered * w1) + rplacepaver + rplaceelement -(eused * ecost) - sfailure
+  
+;end
+
+;;initialization functions
 to initializeproducer
     set heading 0
     set color green
@@ -681,6 +717,7 @@ to-report lastitem [a_list]
   ;gets the index of the last item in a list
   report (length a_list - 1)
 end
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 201
