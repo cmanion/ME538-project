@@ -456,7 +456,10 @@ end
 to pickandplacecanned
   ifelse itemheld = nobody
   [ifelse workerhome
-    [pickupproductfromproducer]
+    [pickupproductfromproducer
+    if itemheld = nobody
+    [set state 1 ] 
+    ]
     [gohomeplace]
     ]
   [ifelse itemheld != 1
