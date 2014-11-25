@@ -14,7 +14,9 @@ globals[
   producerradiobintensity;; intensity range for regolith needed beacon
   producerradiocintensity;; intensity range for product done beacon  
   paversavailable
-  regolithavailable
+  regolithavailable ;; cr
+  w5
+  globalidletime
   ]
 
 
@@ -78,9 +80,13 @@ end
 to go
  addpower
  calculatepaversavailable
+ calculateregolithavailable
  incrementproduceridlecount
+ calculateglobalidletime
  ask producers with [not hidden?]
  [
+   ;;startproducingproduct 2 ;; for fun
+   startproducingproduct mostvaluableproduct
    produceproduct
    producercalculatebeaconintensity
    
@@ -108,6 +114,7 @@ to setglobals
   set producerradiocintensity 10
   set paversavailable 0
   set regolithavailable 0
+  set w5 1
   set productcostinformation
   
   (list
@@ -151,6 +158,15 @@ to calculatepaversavailable
    ] 
   ]
 
+end
+
+to calculateglobalidletime
+  set globalidletime 0
+  ask producers with [not hidden?]
+  [
+  set globalidletime globalidletime + idlecount  
+    
+  ]
 end
 
 to calculateregolithavailable
@@ -219,6 +235,9 @@ end
 ;;producer functions
 ;;the only action available to the producer is to start making a product with the start making product function
 
+to producercannedmode
+     
+end
 
 to producercalculatebeaconintensity ;;producer procedure
   set intensityb round (producerradiobintensity * ((producerregolithcapacity - pregolith) / producerregolithcapacity))
@@ -429,9 +448,13 @@ end
 to miningmodecanned
   ifelse wregolith < workerregolithcapacity
   [
-    ifelse ( paver? or (regolith <= 0) )
+    ifelse ( paver? )
     [getoffpavers]
-    [movemine]
+    [
+      ifelse((regolith <= 0))
+      [moveworker random 7]
+      [movemine]
+    ]
   ]
   [
     ifelse workerhome
@@ -629,7 +652,30 @@ to-report usepower [amount]
   report false
 end
 
+to-report mostvaluableproduct
+   
+    let utilitypaver  1 / (paversavailable)
+  ; capacity remaining
+    let utilityworker globalidletime * w5
+    let utilityproducer poweravailable / ( regolithavailable + 0.1)
+    let utilitysolarcell 1 / (poweravailable + 0.1)
+   let utilitylist (list
+     list utilitypaver 0
+     list utilitysolarcell 1
+     list utilityworker 2
+     list utilityproducer 3   
+     )  
+   report with-max-first utilitylist
+   
+    
+    
+end
 
+to-report with-max-first [lists]
+  let highest-first max map first lists
+  let winning? task [first ? = highest-first]
+  report first butfirst one-of filter winning? lists
+end 
 ;to-report producerreward [ preward ]
  ; let pa poweravailable
   ;let globalideltime  5 ; needs to be changed
@@ -638,7 +684,7 @@ end
   ;let cr 4 ; needs to be changed 
   
   ;let usc 1 / (pa + 0.1)
-  ;let uw globalideltime * w5
+  ;let 
   ;let upav 1 / (pva + 0.1)
   ;let upro pa / (cr + 0.1)
   ;set preward usc + uw + upav + upro
@@ -660,7 +706,7 @@ to initializeproducer
     set idstack []
     set capacity producerproductcapacity
     set intensitya producerradioaintensity
-    set pregolith 20; REMOVE THIS FOR DEBUGGING ONLY!
+    set pregolith 0; 
     set idlecount 0
 end
 
