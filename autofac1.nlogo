@@ -85,7 +85,10 @@ to go
    producercalculatebeaconintensity
    
  ]
+ 
  ask patches [generate-radiofields]
+ ask workers [miningmodecanned]
+ recolor-all
  ask patches [displaypoweravailable]
  
 end
@@ -96,7 +99,7 @@ to setglobals
   set producerproductcapacity 4 ;; producers can store 4 solar cells or pavers, or 1 of anything else
   set workerbatterycapacity 4
   set workerregolithcapacity 4
-  set workerchargetomine 0.1
+  set workerchargetomine 0
   set workeramounttomine 1
   set workerchargerate 0.25
   set workerchargetomove 0.1
@@ -421,6 +424,63 @@ to putdown
   
 end 
 
+
+
+to miningmodecanned
+  ifelse wregolith < workerregolithcapacity
+  [
+    ifelse ( paver? or (regolith <= 0) )
+    [getoffpavers]
+    [movemine]
+  ]
+  [
+    ifelse workerhome
+    [transferregolithtoproducer]
+    [gohomemining]
+    
+  ]
+end
+
+to gohomemining
+  movetowardagent producerwithmaxradiob
+end
+
+to gohomeplace
+  movetowardagent producerwithmaxradioc
+end 
+  
+to movetowardagent [a] 
+let p min-one-of neighbors[distance a]
+if [distance a] of p < (distance a) 
+[
+  face p
+  move-to p
+]
+end
+to-report workerhome
+  ifelse ( count producers-here with [ not hidden?]) > 0
+  [report true]
+  [report false]
+end
+to getoffpavers
+  ;;worker function to get off the paverse
+  downhill radio-a
+end
+
+to movemine
+  uphillregolithnopavers
+  mine
+end
+
+to uphillregolithnopavers
+  let p max-one-of neighbors with [not paver? ] [(regolith)]
+if [regolith] of p > (regolith) 
+[
+  face p
+  move-to p
+]
+end
+
 to mine
   ;; what needs to be done here
   ;;modify so that worker cannot mine more regolith than it can hold
@@ -717,7 +777,6 @@ to-report lastitem [a_list]
   ;gets the index of the last item in a list
   report (length a_list - 1)
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 201
