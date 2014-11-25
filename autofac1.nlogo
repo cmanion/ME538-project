@@ -61,6 +61,8 @@ workers-own[
   wcharge
   itemheld
   carryingpaver?
+  state
+  idle
   ]
 to setup
 clear-all
@@ -93,7 +95,8 @@ to go
  ]
  
  ask patches [generate-radiofields]
- ask workers [miningmodecanned]
+ ask workers  with [not hidden?]
+ [workercanned]
  recolor-all
  ask patches [displaypoweravailable]
  
@@ -389,7 +392,9 @@ end
 to pickupproductfromproducer ;; worker function
   if (not carryingpaver?) and (itemheld = nobody); ifthe worker can carry stuff
   [
-    ask one-of producers-here with[(not hidden?) and (capacity < producerproductcapacity)] ;switch to producer
+    let producerhere one-of producers-here with[(not hidden?) and (capacity < producerproductcapacity)] ;switch to producer 
+    if producerhere != nobody[
+    ask producerhere
     [
       let costvector item (last idstack) productcostinformation
       let capacitycost item 3 costvector
@@ -409,7 +414,7 @@ to pickupproductfromproducer ;; worker function
           set itemheld product  
       ]
     ]
-
+    ]
   ]
 end
 
@@ -433,7 +438,7 @@ to putdown
     [
         if is-turtle? itemheld
         [
-          
+          ask itemheld [move-to myself]
           ask itemheld [st] ;show the item
           set itemheld nobody
         ]
@@ -442,6 +447,57 @@ to putdown
 
   
 end 
+to workercanned
+  if state = 1
+  [miningmodecanned]
+  if state = 2
+  [pickandplacecanned]
+end
+to pickandplacecanned
+  ifelse itemheld = nobody
+  [ifelse workerhome
+    [pickupproductfromproducer]
+    [gohomeplace]
+    ]
+  [ifelse itemheld != 1
+    [
+    findaplaceforfactoryitem  
+    ]
+    [findaplaceforpaver]
+  ]
+end
+
+to findaplaceforpaver
+  ifelse paver?
+  [ifelse onedge
+    [downhillregolithnopavers]
+    [moverandomlyonpavers]
+    ]
+  [ifelse canplacepaver
+    [putdown
+      set state 1
+      ]
+    [uphill radio-a]
+    ]
+  
+end
+
+to findaplaceforfactoryitem
+  ifelse paver?
+  [ifelse paveroccupied
+    [moverandomlyonpavers]
+    [putdown
+      set state 1]
+    ]
+  [
+    uphill radio-a
+    ]
+end
+to moverandomlyonpavers
+  let pavers neighbors with [paver?]
+  move-to one-of pavers 
+end
+
 
 
 
@@ -458,7 +514,8 @@ to miningmodecanned
   ]
   [
     ifelse workerhome
-    [transferregolithtoproducer]
+    [transferregolithtoproducer
+      set state 2]
     [gohomemining]
     
   ]
@@ -485,9 +542,30 @@ to-report workerhome
   [report true]
   [report false]
 end
+
+to-report paveroccupied
+  ifelse ((( count producers-here with [ not hidden?]) > 0) or (( count solarcells-here with [ not hidden?]) > 0))
+  [report true]
+  [report false]
+end
+
 to getoffpavers
   ;;worker function to get off the paverse
   downhill radio-a
+end
+to-report canplacepaver
+  let paves neighbors4 with[paver?]
+  ifelse ((count paves > 0) and (not paver?))
+  [report true]
+  [report false]
+end
+
+to-report onedge ;; if worker is on an edge
+  
+  let paves neighbors4 with[not paver?]
+  ifelse count paves > 0 and paver?
+  [report true]
+  [report false]
 end
 
 to movemine
@@ -498,6 +576,15 @@ end
 to uphillregolithnopavers
   let p max-one-of neighbors with [not paver? ] [(regolith)]
 if [regolith] of p > (regolith) 
+[
+  face p
+  move-to p
+]
+end
+
+to downhillregolithnopavers
+  let p min-one-of neighbors4 with [not paver? ] [(regolith)]
+if [regolith] of p < (regolith) or paver? 
 [
   face p
   move-to p
@@ -654,7 +741,7 @@ end
 
 to-report mostvaluableproduct
    
-    let utilitypaver  1 / (paversavailable)
+    let utilitypaver  1 / (paversavailable + 0.1)
   ; capacity remaining
     let utilityworker globalidletime * w5
     let utilityproducer poweravailable / ( regolithavailable + 0.1)
@@ -714,6 +801,7 @@ to initializeworker
   set itemheld nobody
   set color red
   set carryingpaver? false
+  set state 1
 end
 
 to initializesolarcell
