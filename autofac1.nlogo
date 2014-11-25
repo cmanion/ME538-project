@@ -17,6 +17,10 @@ globals[
   regolithavailable ;; cr
   w5
   globalidletime
+  utilityworkers
+  utilitysolarcells
+  utilityproducers
+  utilitypavers
   ]
 
 
@@ -229,7 +233,8 @@ to incrementproduceridlecount
   [
   if ((capacity <= 0))
     [
-      set idlecount idlecount + 1
+      if idlecount <= 50[
+      set idlecount idlecount + 1]
     ]
     
   ]
@@ -728,9 +733,10 @@ end
 to-report usepower [amount]
   if paver?
   [
-    if poweravailable > amount
+    let currentcluster cluster
+    ifelse poweravailable > amount
     [
-      let currentcluster cluster
+      
       ask patches with [cluster = currentcluster]
       [
         set poweravailable poweravailable - amount
@@ -738,6 +744,15 @@ to-report usepower [amount]
       ]
       report true
     ]
+    [  
+          
+      ask patches with [cluster = currentcluster]
+      [
+        set poweravailable 0
+        
+      ]
+      report false
+      ]
   ]
   report false
 end
@@ -1009,6 +1024,28 @@ NIL
 NIL
 NIL
 1
+
+MONITOR
+34
+298
+150
+343
+NIL
+paversavailable
+17
+1
+11
+
+MONITOR
+36
+357
+140
+402
+NIL
+globalidletime
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
