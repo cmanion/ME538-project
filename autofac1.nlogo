@@ -21,6 +21,7 @@ globals[
   utilitysolarcells
   utilityproducers
   utilitypavers
+  
   ]
 
 
@@ -87,8 +88,7 @@ to go
  addpower
  calculatepaversavailable
  calculateregolithavailable
- incrementproduceridlecount
- calculateglobalidletime
+
  ask producers with [not hidden?]
  [
    ;;startproducingproduct 2 ;; for fun
@@ -101,6 +101,8 @@ to go
  ask patches [generate-radiofields]
  ask workers  with [not hidden?]
  [workercanned]
+  incrementproduceridlecount
+ calculateglobalidletime
  recolor-all
  ask patches [displaypoweravailable]
  
@@ -169,11 +171,13 @@ end
 
 to calculateglobalidletime
   set globalidletime 0
+  let pcount count producers with [not hidden?]
   ask producers with [not hidden?]
   [
   set globalidletime globalidletime + idlecount  
     
   ]
+  set globalidletime globalidletime / pcount
 end
 
 to calculateregolithavailable
@@ -231,9 +235,9 @@ end
 to incrementproduceridlecount
   ask producers with [not hidden?]
   [
-  if ((capacity <= 0))
+  if capacity = 0
     [
-      if idlecount <= 50[
+      if idlecount <= 10[
       set idlecount idlecount + 1]
     ]
     
@@ -759,11 +763,11 @@ end
 
 to-report mostvaluableproduct
    
-    let utilitypaver  1 / (paversavailable + 0.1)
+    let utilitypaver  1.1 / (paversavailable + 0.01)
   ; capacity remaining
     let utilityworker globalidletime * w5
-    let utilityproducer poweravailable / ( regolithavailable + 0.1)
-    let utilitysolarcell 1 / (poweravailable + 0.1)
+    let utilityproducer poweravailable / ( regolithavailable + 0.01)
+    let utilitysolarcell 1 / (poweravailable + 0.01)
    let utilitylist (list
      list utilitypaver 0
      list utilitysolarcell 1
@@ -981,7 +985,7 @@ BUTTON
 106
 NIL
 go
-T
+NIL
 1
 T
 OBSERVER
