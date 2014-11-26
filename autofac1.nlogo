@@ -157,6 +157,62 @@ to recolor-all
   [recolor-patches]
 end
 
+To-report maximumQvalueandaction [Q, s, ap]
+  ;;finds the maximum Q value and action given a Q matrix, current state, possible actions
+  ;;Q is a table with keys as states and a list of actions and Q values
+  ;;ap are the possible actions, 
+  ;;ap list of integers
+ ; if not table:has-key? Q
+ ;qa is the list of actions and Q values
+   if not table:has-key? Q s
+  [
+    
+  ]
+  let a-q table:get Q s
+  set a-q initializeQ ap a-q
+  ;;find a list of action Q values only from the actions that are available
+  let filteractions filter [member? first ? ap] a-q
+  let index indexofmaxvalueinlist map last filteractions;; 
+  report item index filteractions  
+end
+
+to-report maxQandactiongivenpossibleactions [ap a-q]
+  ;;a-q must already be initialized
+  ;;maxQandactiongivenpossibleactions (list 1) (list (list 1 1) (list 2 3))
+  ;;
+  ;;ap are the possible actions, qa is the list of actions and Q values
+  ;;ap list of integers
+  ;;a-q list( (list action qvalue) )
+
+  ;let plist 
+  ;;find a list of action Q values only from the actions that are available
+  let filteractions filter [member? first ? ap] a-q
+  let index indexofmaxvalueinlist map last filteractions;; 
+  report item index filteractions
+end
+
+to-report initializeQactions[ap a-q]
+  let defaultq 1
+  ;; initialize an action if it isn't in the list
+  foreach ap
+  [
+    ;; find if a value is not in the first part of the lsit
+  if not member? ?1 map first a-q
+  [
+    
+   set a-q lput (list ?1 defaultq) a-q
+   ;initialize an action that isn't in the list to initial q value   
+  ]
+    
+  ]
+  report a-q
+end
+
+to-report indexofmaxvalueinlist [inlist]
+let m max inlist
+report position m inlist
+
+end
 to calculatepaversavailable
   set paversavailable 0
   ask patches with [paver?]
@@ -985,7 +1041,7 @@ BUTTON
 106
 NIL
 go
-NIL
+T
 1
 T
 OBSERVER
