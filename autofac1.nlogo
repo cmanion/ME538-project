@@ -34,6 +34,12 @@ globals[
   nproducers
   ]
 
+; lkahdl;lsadj;sadasdasd
+
+
+
+sadsadsa
+
 
 ;NEEDS TO BE IMPLEMENTED
 ;for simulator:
