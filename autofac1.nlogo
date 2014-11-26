@@ -1,3 +1,5 @@
+extensions [table]
+
 globals[
   solarcellpower
   producerpowerneededperstep
@@ -21,20 +23,24 @@ globals[
   utilitysolarcells
   utilityproducers
   utilitypavers
-  
+  productivity
+  dpavers 
+  dsolarcells 
+  dworkers 
+  dproducers
+  npavers 
+  nsolarcells 
+  nworkers 
+  nproducers
   ]
 
 
 ;NEEDS TO BE IMPLEMENTED
 ;for simulator:
-;function for worker to drop regolith off at the producer
-
-;beacons
-;action: move worker in the direction of a beacon 
 ;what the worker can sense
 ;worker can sense the states of the cell it is on,  the regolith values on the cells surrounding it, whether the surrounding cells are pavers, whether there are producers, solar cells on surrounding cells
 ;ignore other workers for now
-
+;Q-learning: Q-learning
 
 
 breed [solarcells solarcell]
@@ -103,6 +109,7 @@ to go
  [workercanned]
   incrementproduceridlecount
  calculateglobalidletime
+ ;calculateproductivity
  recolor-all
  ask patches [displaypoweravailable]
  
@@ -124,6 +131,11 @@ to setglobals
   set paversavailable 0
   set regolithavailable 0
   set w5 1
+  set productivity 0
+  set npavers 9
+  
+  ;;add more global variables here
+  
   set productcostinformation
   
   (list
@@ -157,7 +169,21 @@ to recolor-all
   [recolor-patches]
 end
 
-To-report maximumQvalueandaction [Q, s, ap]
+
+
+
+
+to qtest
+;; function for testing Q
+  let Q table:make
+  let s (list 1 2 3 4 5)
+  let ap (list 1 2 3)
+  let foo maximumQvalueandaction Q s ap
+  print foo
+  print Q
+end
+
+To-report maximumQvalueandaction [Q s ap]
   ;;finds the maximum Q value and action given a Q matrix, current state, possible actions
   ;;Q is a table with keys as states and a list of actions and Q values
   ;;ap are the possible actions, 
@@ -166,10 +192,12 @@ To-report maximumQvalueandaction [Q, s, ap]
  ;qa is the list of actions and Q values
    if not table:has-key? Q s
   [
-    
+    table:put Q s (list)
   ]
   let a-q table:get Q s
-  set a-q initializeQ ap a-q
+  ;;initialize Q
+  set a-q initializeQactions ap a-q
+  table:put Q s a-q
   ;;find a list of action Q values only from the actions that are available
   let filteractions filter [member? first ? ap] a-q
   let index indexofmaxvalueinlist map last filteractions;; 
@@ -932,6 +960,24 @@ to displaypoweravailable ;;patch function
     set plabel ""
   ]
 end
+
+to calculateproductivity
+  set productivity 0
+  set dpavers  0
+  set dworkers 0
+  set dsolarcells 0
+  set dproducers 0
+  let foo1 count patches with [ paver? ]
+  set dpavers foo1 - npavers 
+  let foo2 count solarcells
+  set dsolarcells foo2 - nsolarcells
+  let foo3 count workers
+  set dworkers foo3 - nworkers
+  let foo4 count producers
+  set dproducers foo4 - nproducers
+  set productivity (dpavers + dsolarcells + dworkers + dproducers) / (npavers + nsolarcells + nworkers + nproducers)
+end
+
 to recolor-patches
   ifelse paver?
   [set pcolor yellow]
