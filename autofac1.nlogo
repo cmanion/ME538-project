@@ -185,7 +185,7 @@ to qtest
   let foo maximumQvalueandaction Q s ap
   print foo
   print Q
-  updateQ Q s 1 10 ap
+  updateQ Q s 1 5 ap
   print Q
 end
 
