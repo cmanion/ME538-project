@@ -700,6 +700,7 @@ to mine
   ]
 end
 
+
 to workerrecharge
   if (( paver?) and (wcharge < workerbatterycapacity)) ;; if the worker is on a paver attempt to recharge
   [
@@ -970,25 +971,29 @@ to calculateproductivity
   set npavers foo1
   
   let foo2 count solarcells
-  set nsolarcells count  solarcells
+  ;set nsolarcells count  solarcells
   ;set nsolarcells count turtles = solarcells
   set dsolarcells foo2 - nsolarcells
-  
+  set nsolarcells foo2
   
   let foo3 count workers
-  set nworkers count workers
+  ;set nworkers count workers
   ;set nworkers count turtles = workers
   set dworkers foo3 - nworkers
+  set nworkers foo3
   
   
   let foo4 count producers
-  set nproducers count  producers
+  ;set nproducers count  producers
   ;set nproducers count turtles = producers
   set dproducers foo4 - nproducers
+  set nproducers foo4
   
   
   set productivity (dpavers + dsolarcells + dworkers + dproducers) / (npavers + nsolarcells + nworkers + nproducers)
 end
+
+
 
 to recolor-patches
   ifelse paver?
@@ -1046,6 +1051,16 @@ end
 to-report lastitem [a_list]
   ;gets the index of the last item in a list
   report (length a_list - 1)
+end
+
+
+to see
+   ask workers
+   [ask patches in-radius 1
+ [ show patch-set [patch-here] of workers]]
+   ;need to count whats is on
+   
+   
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
