@@ -32,6 +32,8 @@ globals[
   nsolarcells 
   nworkers 
   nproducers
+  alpha
+  discountrate
   ]
 
 
@@ -109,7 +111,7 @@ to go
  [workercanned]
   incrementproduceridlecount
  calculateglobalidletime
- ;calculateproductivity
+ calculateproductivity
  recolor-all
  ask patches [displaypoweravailable]
  
@@ -133,7 +135,8 @@ to setglobals
   set w5 1
   set productivity 0
   set npavers 9
-  
+  set alpha 0.1
+  set discountrate 0.4
   ;;add more global variables here
   
   set productcostinformation
@@ -175,12 +178,32 @@ end
 
 to qtest
 ;; function for testing Q
+  setglobals
   let Q table:make
   let s (list 1 2 3 4 5)
   let ap (list 1 2 3)
   let foo maximumQvalueandaction Q s ap
   print foo
   print Q
+  updateQ Q s 1 10 ap
+  print Q
+end
+
+to updateQ [Q s a r ap]
+  ;; Q is qtable
+  ;;s states
+  ;;a action
+  ;;r reward
+  ;;updates a Q matrix
+  ;;r is reward received
+  let a-q table:get Q s ;; list of actions and Q values
+  let index position a map first a-q ;; the the index of the action and q-value
+  let curQ item 1 item index a-q;;current Q value
+  let maxQ item 1 maximumQvalueandaction Q s ap
+  let nexQ (curQ + alpha *( r + discountrate * maxQ - curQ))
+  set a-q (replace-item index a-q (replace-item 1 (item index a-q) nexQ))
+  table:put Q s a-q
+  
 end
 
 To-report maximumQvalueandaction [Q s ap]
@@ -331,9 +354,9 @@ end
 ;;producer functions
 ;;the only action available to the producer is to start making a product with the start making product function
 
-to producercannedmode
+;to producercannedmode
      
-end
+;end
 
 to producercalculatebeaconintensity ;;producer procedure
   set intensityb round (producerradiobintensity * ((producerregolithcapacity - pregolith) / producerregolithcapacity))
