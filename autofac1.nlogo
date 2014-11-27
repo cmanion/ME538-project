@@ -962,11 +962,8 @@ to displaypoweravailable ;;patch function
 end
 
 to calculateproductivity
-  set productivity 0
-  set dpavers  0
-  set dworkers 0
-  set dsolarcells 0
-  set dproducers 0
+;there is a bug in this function
+
   let foo1 count patches with [ paver? ]
   set dpavers foo1 - npavers 
   let foo2 count solarcells
@@ -1149,6 +1146,17 @@ MONITOR
 402
 NIL
 globalidletime
+17
+1
+11
+
+MONITOR
+45
+414
+133
+459
+NIL
+productivity
 17
 1
 11
