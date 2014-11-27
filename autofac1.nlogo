@@ -109,7 +109,7 @@ to go
  [workercanned]
   incrementproduceridlecount
  calculateglobalidletime
- ;calculateproductivity
+ calculateproductivity
  recolor-all
  ask patches [displaypoweravailable]
  
@@ -965,21 +965,25 @@ to calculateproductivity
 ;there is a bug in this function
 
   let foo1 count patches with [ paver? ]
-  set npavers count patches with [pcolor = yellow]
+  ;set npavers count patches with [pcolor = yellow]
   set dpavers foo1 - npavers 
+  set npavers foo1
   
   let foo2 count solarcells
-  set nsolarcells count turtles = solarcells
+  set nsolarcells count  solarcells
+  ;set nsolarcells count turtles = solarcells
   set dsolarcells foo2 - nsolarcells
   
   
   let foo3 count workers
-  set nworker count turtles [workers?]
+  set nworkers count workers
+  ;set nworkers count turtles = workers
   set dworkers foo3 - nworkers
   
   
   let foo4 count producers
-  set nproducers count [producers?]
+  set nproducers count  producers
+  ;set nproducers count turtles = producers
   set dproducers foo4 - nproducers
   
   
