@@ -76,6 +76,10 @@ workers-own[
   carryingpaver?
   state
   idle
+  Qw
+  prevstate ;;previous state
+  actionperformed
+  reward
   ]
 to setup
 clear-all
@@ -88,6 +92,7 @@ set-default-shape producers "factory"
 set-default-shape workers "bulldozer top"
 set-default-shape launchers "container"
 setup-seed 0 0
+
 recolor-all
 
 end
@@ -126,7 +131,7 @@ to setglobals
   set workerchargetomine 0
   set workeramounttomine 1
   set workerchargerate 0.25
-  set workerchargetomove 0.1
+  set workerchargetomove 0
   set producerradioaintensity 10
   set producerradiobintensity 10
   set producerradiocintensity 10
@@ -143,7 +148,7 @@ to setglobals
   
   (list
     ;; power_cost regolith_cost turns capacity_cost
-    (list 1 1 3 1);;paver cost
+    (list 1 1 3 1);;paver cost 
     (list 1 1 5 1);;solar cell cost
     (list 1 2 10 4);;worker cost, workers drive off cell
     (list 1 5 20 4);;producer cost
@@ -187,6 +192,11 @@ to qtest
   print Q
   updateQ Q s 1 5 ap
   print Q
+end
+
+to worker-learning
+  let a-p workerpossibleactions
+  ;let
 end
 
 to updateQ [Q s a r ap]
@@ -274,6 +284,69 @@ to calculatepaversavailable
    ] 
   ]
 
+end
+
+to workerperformaction [action]
+  ;;perform a discrete action
+  if action >= 0
+  [
+   moveworker action
+    
+   ]
+  if action = 7
+  [
+    mine
+  ]
+  if action = 8
+  [
+    transferregolithtoproducer  
+  ]
+  if action = 9
+  [
+    pickupproductfromproducer
+  ]
+  if action = 10
+  [
+    putdown  
+  ]
+  
+  if action = 11
+  [
+    downhill radio-a  
+  ]
+  
+  if action = 12 
+  [
+    uphill radio-a  
+  ]
+  
+end
+
+to-report workerpossibleactions
+  ;; we limit the actions a worker can perform to make learning more efficient
+  let alist (list 0 1 2 3 4 5 6 7)
+  if not paver?
+  [
+  set alist lput 7 alist ; if the worker is not on a paver it can mine
+    
+  ]
+  if workerhome; if the worker is at a producer
+  [
+     set alist lput 8 alist 
+     set alist lput 9 alist
+  ]
+  if carryingpaver? and canplacepaver
+  [
+    set alist lput 10 alist
+  ]
+  if itemheld != nobody and (not carryingpaver?)
+  [
+    set alist lput 10 alist  
+  ]  
+  
+  set alist lput 11 alist
+  set alist lput 12 alist
+  report alist
 end
 
 to calculateglobalidletime
@@ -815,10 +888,10 @@ to moveworker [dir]
   ;;move the worker N, E, S, W or a in a diagonal, specified with an integer
   set heading dir * 45
   ifelse (dir mod 2) = 1
-  ;[movedistanceusepower sqrt 2]
-  ;[movedistanceusepower 1]
-  [fd sqrt 2]
-  [fd 1]
+  [movedistanceusepower sqrt 2]
+  [movedistanceusepower 1]
+  ;[fd sqrt 2]
+  ;[fd 1]
   if is-turtle? itemheld
   [ask itemheld[move-to myself]]; move item with turtle
 end
@@ -931,6 +1004,8 @@ to initializeworker
   set color red
   set carryingpaver? false
   set state 1
+  set reward 0
+  ;table:make
 end
 
 to initializesolarcell
