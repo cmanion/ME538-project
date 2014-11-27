@@ -965,13 +965,24 @@ to calculateproductivity
 ;there is a bug in this function
 
   let foo1 count patches with [ paver? ]
+  set npavers count patches with [pcolor = yellow]
   set dpavers foo1 - npavers 
+  
   let foo2 count solarcells
+  set nsolarcells count turtle [solarcell?]
   set dsolarcells foo2 - nsolarcells
+  
+  
   let foo3 count workers
+  set nworker count [workers?]
   set dworkers foo3 - nworkers
+  
+  
   let foo4 count producers
+  set nproducers count [producers?]
   set dproducers foo4 - nproducers
+  
+  
   set productivity (dpavers + dsolarcells + dworkers + dproducers) / (npavers + nsolarcells + nworkers + nproducers)
 end
 
