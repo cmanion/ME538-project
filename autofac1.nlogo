@@ -969,7 +969,7 @@ to calculateproductivity
   set dpavers foo1 - npavers 
   
   let foo2 count solarcells
-  set nsolarcells count turtle [solarcell?]
+  set nsolarcells count turtles = solarcell
   set dsolarcells foo2 - nsolarcells
   
   
