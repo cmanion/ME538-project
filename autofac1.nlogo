@@ -79,7 +79,7 @@ workers-own[
   Qw
   prevstate ;;previous state
   actionperformed
-  reward
+  wreward
   ]
 to setup
 clear-all
@@ -195,8 +195,19 @@ to qtest
 end
 
 to worker-learning
-  let a-p workerpossibleactions
+  ;figure out what the worker can dow
+  let ap workerpossibleactions
+  ;get the state of the worker
+  let s (list random 3 random 3 random 3 random 3 random 3)
+  ;let s workergetstate ;; not implemented
+
+  let a item 1 maximumQvalueandaction Qw s ap
+  workerperformaction a ;; greedily choose the action with the highest value
+  ;updateQ with the reward
+  updateQ Qw s a wreward ap
   ;let
+  set wreward 0
+  
 end
 
 to updateQ [Q s a r ap]
@@ -270,9 +281,25 @@ to-report initializeQactions[ap a-q]
 end
 
 to-report indexofmaxvalueinlist [inlist]
-let m max inlist
-report position m inlist
+;let m max inlist
+;find the index of one of the maximum values in a list
+;to calculate this I have to do some weird stuff
+;gotta make a new list of lists first entry as inlist values and second value is list index
+;then do with-max-first! it's that easy(or complicated)
+let fakelist []
+let index 0
+foreach inlist
+[
+  let foolist (list ? index)
+  ;print foolist
+  set fakelist lput (list ? index) fakelist
+  ;print ?
+  set index index + 1
+]
 
+report with-max-first fakelist
+
+;report position m inlist
 end
 to calculatepaversavailable
   set paversavailable 0
@@ -1004,8 +1031,8 @@ to initializeworker
   set color red
   set carryingpaver? false
   set state 1
-  set reward 0
-  ;table:make
+  set wreward 0
+  set Qw table:make
 end
 
 to initializesolarcell
