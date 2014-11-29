@@ -32,6 +32,8 @@ globals[
   nsolarcells 
   nworkers 
   nproducers
+  carryingpaver
+  
   ]
 
 
@@ -966,28 +968,47 @@ to calculateproductivity
 ;there is a bug in this function
 
   let foo1 count patches with [ paver? ]
-  ;set npavers count patches with [pcolor = yellow]
-  set dpavers foo1 - npavers 
-  set npavers foo1
+  ask workers [
+    set carryingpaver count workers with [ carryingpaver? ]
+  ]
+  ask producer [
+    let pfactory count producer with [ carryingpaver?]
+  ]
+  let x1 foo1 + carryingpaver + pfactory
+  set dpavers x1 - npavers 
+  
   
   let foo2 count solarcells
-  ;set nsolarcells count  solarcells
-  ;set nsolarcells count turtles = solarcells
-  set dsolarcells foo2 - nsolarcells
-  set nsolarcells foo2
+  ask patches [
+    let solarcellsplaced count patches with  [ solarcells? ]
+  ]
+  ask producer [
+    let solarcellsproducing count producer with [ solarcells ]
+  ]
+  let x2 foo2 + solarcellsplaced + solarcellsproducing
+  set dsolarcells x2 - nsolarcells
   
   let foo3 count workers
-  ;set nworkers count workers
-  ;set nworkers count turtles = workers
-  set dworkers foo3 - nworkers
-  set nworkers foo3
+  ask patches[
+    let workersworking count patches with [ worker? ]
+  ]
   
+  ask producer [
+    let workerproducing count producer with [ productid 2 ]
+  ]
+  let x3 workerworking + workerproducing
+  set dworkers x3 - nworkers
   
   let foo4 count producers
-  ;set nproducers count  producers
-  ;set nproducers count turtles = producers
-  set dproducers foo4 - nproducers
-  set nproducers foo4
+  ask patches [
+    let producerspresent count patches with [ producer? ]
+  ]
+  ask producers [
+    let newproducers count producer with [ productid 3 ]
+  ]
+  let x4 foo4 + producerspresent + newproducers
+  set dproducers x4 - nproducers
+  
   
   
   set productivity (dpavers + dsolarcells + dworkers + dproducers) / (npavers + nsolarcells + nworkers + nproducers)
