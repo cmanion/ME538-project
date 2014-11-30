@@ -1155,6 +1155,7 @@ end
 to calculateproductivity
   let productionlist produceroperation ;;list of stuff that is currently being made
   let inventorylist producerinventory ;; list of stuff held in inventory
+  let winventory workerinventory ;; list of stuff carried by workers
   let pbeingmade item 0 productionlist
   let scbeingmade item 1 productionlist
   let wbeingmade item 2 productionlist
@@ -1162,15 +1163,17 @@ to calculateproductivity
   let carriedpavers 0
   let producerpavers 0
   let placedpavers count patches with [ paver? ]
-  ask workers [
-    set carriedpavers count workers with [ carryingpaver? ]
-  ]
+  let placedsolarcells count solarcells with [not hidden?]
+  let placedproducers count producers with [not hidden?]
+ 
+  set carriedpavers item 0 winventory
+  
   
   let currentp  placedpavers + 0.75 * carriedpavers + 0.5 *(item 0 inventorylist) + 0.25 * pbeingmade 
   set dpavers currentp - npavers 
   set npavers currentp ;update number of pavers
   
-  let sccount (count solarcells) + scbeingmade
+  let sccount placedsolarcells + 0.75 *(item 1 winventory) + 0.5 * (item 1 producerinventory) + 0.25 * scbeingmade 
 ;;  ask patches [
 ;;    let solarcellsplaced count patches with  [ solarcells? ]
 ;;  ]
@@ -1191,7 +1194,7 @@ to calculateproductivity
 ;  let x3 workerworking + workerproducing
 ;  set dworkers x3 - nworkers
 ;  
-  let procount (count producers) + probeingmade
+  let procount placedproducers + 0.75 * (item 3 winventory) + 0.5 * (item 3 producerinventory) + 0.25 * probeingmade
 ;  ask patches [
 ;    let producerspresent count patches with [ producer? ]
 ;  ]
@@ -1205,7 +1208,7 @@ to calculateproductivity
 ;  
 ;  
 ;  
-set productivity (dpavers + dsolarcells + dworkers + dproducers) / (placedpavers + nsolarcells + nworkers + nproducers)
+set productivity (dpavers + dsolarcells + dworkers + dproducers) / (placedpavers + placedsolarcells + nworkers + placedproducers)
 end
 to recolor-patches
   ifelse paver?
@@ -1255,11 +1258,19 @@ ask producers with[not hidden? and productid > -1]
 report (list pcount sccount wcount procount)
 
 end
-to workerinventory
-let pcount 0
-let sccount 0
-let wcount 0
-let procount 0
+to-report workerinventory
+let pcount count workers with [ carryingpaver? ]
+let sccount count workers with [(not hidden?) and (itemheld != nobody) and (itemheld != 1) and (member? itemheld solarcells)]
+;let wcount count workers with [(itemheld != nobody) and (itemheld != 1) and (member? itemheld solarcells)]
+let procount count workers with [(not hidden?) and (itemheld != nobody) and (itemheld != 1) and (member? itemheld producers)]
+report (list pcount sccount 0 procount)
+
+ ;ask workers with[(not hidden?) and  (itemheld != nobody)]
+ ;[
+  ; if itemheld  
+   
+ ;]
+
 end
 to find-clusters
 ;;paver cluster finding function
