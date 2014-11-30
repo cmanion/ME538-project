@@ -119,8 +119,8 @@ to go
  
  ask patches [generate-radiofields]
  ask workers  with [not hidden?]
- ;[worker-learning]
-  [workercanned]
+ [worker-learning]
+ ;[workercanned]
   incrementproduceridlecount
  calculateglobalidletime
  calculateproductivity
@@ -151,7 +151,7 @@ to setglobals
   set npavers 9
   set alpha 0.1
   set discountrate 0.4
-  set qinit 10
+  set qinit 1
   ;;add more global variables here
   
   set productcostinformation
@@ -289,8 +289,9 @@ to-report initializeQactions[ap a-q]
     ;; find if a value is not in the first part of the lsit
   if not member? ?1 map first a-q
   [
-    
-   set a-q lput (list ?1 defaultq) a-q
+   ifelse (?1 = 8) or (?1 = 9)
+   [set a-q lput (list ?1 (10 * defaultq)) a-q]
+   [set a-q lput (list ?1 defaultq) a-q]
    ;initialize an action that isn't in the list to initial q value   
   ]
     
@@ -377,7 +378,7 @@ end
 
 to workerperformaction [action]
   ;;perform a discrete action
-  if action >= 0
+  if (action >= 0) and (action < 7)
   [
    moveworker action
     
@@ -1208,7 +1209,7 @@ to calculateproductivity
 ;  
 ;  
 ;  
-set productivity (dpavers + dsolarcells + dworkers + dproducers) / (placedpavers + placedsolarcells + nworkers + placedproducers)
+set productivity (dpavers + dsolarcells + dworkers + dproducers) / (placedpavers + placedsolarcells + (count workers) + placedproducers)
 end
 to recolor-patches
   ifelse paver?
@@ -1486,7 +1487,7 @@ randompercent
 randompercent
 0
 1
-0.05
+0
 0.05
 1
 NIL
