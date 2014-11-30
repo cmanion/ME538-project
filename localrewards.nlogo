@@ -131,15 +131,15 @@ to go
 end
 
 to setglobals
-  set solarcellpower 1
+  set solarcellpower 0.75
   set producerregolithcapacity 20
   set producerproductcapacity 4 ;; producers can store 4 solar cells or pavers, or 1 of anything else
   set workerbatterycapacity 4
   set workerregolithcapacity 4
-  set workerchargetomine 0
+  set workerchargetomine 0.05
   set workeramounttomine 1
   set workerchargerate 0.25
-  set workerchargetomove 0
+  set workerchargetomove 0.05
   set producerradioaintensity 10
   set producerradiobintensity 10
   set producerradiocintensity 10
@@ -223,6 +223,7 @@ to worker-learning
   workerperformaction a ;; greedily choose the action with the highest value
   ;updateQ with the reward
   if (radio-a > prevradio-a) and wregolith > 0 [set wreward wreward + (wregolith / workerregolithcapacity)]
+  ;workerpowerdepletionpenalty does not seem to work well
   updateQ Qw s a wreward ap
   ;let
   set wreward 0
@@ -299,7 +300,14 @@ to-report initializeQactions[ap a-q]
   ]
   report a-q
 end
-
+to workerpowerdepletionpenalty
+  if wcharge <= 0
+  [ 
+  move-to one-of patches with[paver?]
+  set wregolith 0
+  set wreward -1 
+  ]
+end
 to-report indexofmaxvalueinlist [inlist]
 ;let m max inlist
 ;find the index of one of the maximum values in a list
@@ -381,6 +389,7 @@ end
 
 to workerperformaction [action]
   ;;perform a discrete action
+  workerrecharge
   if (action >= 0) and (action < 7)
   [
    moveworker action
@@ -405,12 +414,12 @@ to workerperformaction [action]
   
   if action = 11
   [
-    downhill radio-a  
+    downhillradioa  
   ]
   
   if action = 12 
   [
-    uphill radio-a  
+    uphillradioa  
   ]
   
 end
@@ -820,7 +829,7 @@ end
 to gohomeplace
   movetowardagent producerwithmaxradioc
 end 
-  
+
 to movetowardagent [a] 
 let p min-one-of neighbors[distance a]
 if [distance a] of p < (distance a) 
@@ -872,6 +881,25 @@ if [regolith] of p > (regolith)
   face p
   move-to p
 ]
+end
+
+to uphillradioa
+  move-tousingpower patch-here
+  let p max-one-of neighbors [radio-a]
+  if [radio-a] of p > radio-a [
+    move-tousingpower p
+    
+    ]
+end
+
+
+to downhillradioa
+  move-tousingpower patch-here
+  let p min-one-of neighbors [radio-a]
+  if [radio-a] of p < radio-a [
+    move-tousingpower p
+    
+    ]
 end
 
 to downhillregolithnopavers
@@ -1014,6 +1042,14 @@ to movedistanceusepower [dist]
     set wcharge wcharge - powertomove
   ]
 end
+
+to move-tousingpower [p] ;move-to equivalent for the worker that uses charge
+  
+  let dist distance p
+  face p
+  movedistanceusepower dist
+end
+
 
 ;;function for anything on a paver to use power off the grid
 to-report usepower [amount]
@@ -1434,17 +1470,6 @@ NIL
 1
 
 MONITOR
-34
-298
-150
-343
-NIL
-paversavailable
-17
-1
-11
-
-MONITOR
 36
 357
 140
@@ -1494,7 +1519,7 @@ randompercent
 randompercent
 0
 1
-0
+0.3
 0.05
 1
 NIL
