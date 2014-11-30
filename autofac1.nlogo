@@ -198,9 +198,9 @@ to worker-learning
   ;figure out what the worker can dow
   let ap workerpossibleactions
   ;get the state of the worker
-  let s (list random 3 random 3 random 3 random 3 random 3)
-  ;let s workergetstate ;; not implemented
-
+  ;let s (list random 3 random 3 random 3 random 3 random 3)
+  let s sensorscan
+  print s
   let a item 1 maximumQvalueandaction Qw s ap
   workerperformaction a ;; greedily choose the action with the highest value
   ;updateQ with the reward
@@ -312,6 +312,50 @@ to calculatepaversavailable
   ]
 
 end
+
+to-report whatsonthepatch [p]
+  let sccount count (solarcells-on p) with [not hidden?]
+  let pcount count (producers-on p) with [not hidden?]
+  ifelse ((sccount > 0) or (pcount > 0 ))
+  [
+    if (sccount > 0)
+    [report 2]
+    if (pcount > 0)
+    [report 3]
+  ]
+  [
+    let fakepaver? false
+    ask p [set fakepaver? paver?]
+    
+    ifelse fakepaver?
+    [
+      report 1  
+    ]
+    [
+      report 0 
+    ]
+    ;then paver
+  ]
+  
+  ;p is a patch
+  
+  
+  report [];; there's nothing on the patch
+end
+
+to-report sensorscan
+  let sensorlist []
+  set sensorlist lput (whatsonthepatch patch-here) sensorlist 
+  foreach [0 1 2 3 4 5 6 7]
+  [
+    set heading ? * 45
+    set sensorlist lput (whatsonthepatch patch-ahead 1 ) sensorlist 
+  ]
+  report sensorlist
+  
+  
+end
+
 
 to workerperformaction [action]
   ;;perform a discrete action
