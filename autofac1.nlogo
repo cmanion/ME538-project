@@ -32,9 +32,13 @@ globals[
   nsolarcells 
   nworkers 
   nproducers
-  
+  qinit
   workerminingreward
   workerdeliveryreward
+  ;pturns
+  ;scturns
+  ;wturns
+  ;proturns
   ]
 
 
@@ -78,8 +82,9 @@ workers-own[
   state
   idle
   Qw
-  prevstate ;;previous state
-  actionperformed
+  ;prevstate ;;previous state
+  ;actionperformed
+  rewardflag; for dropping off regolith
   wreward
   ]
 to setup
@@ -114,7 +119,8 @@ to go
  
  ask patches [generate-radiofields]
  ask workers  with [not hidden?]
- [worker-learning]
+ ;[worker-learning]
+  [workercanned]
   incrementproduceridlecount
  calculateglobalidletime
  calculateproductivity
@@ -145,6 +151,7 @@ to setglobals
   set npavers 9
   set alpha 0.1
   set discountrate 0.4
+  set qinit 10
   ;;add more global variables here
   
   set productcostinformation
@@ -206,6 +213,11 @@ to worker-learning
   let s sensorscan
   ;print s
   let a item 0 maximumQvalueandaction Qw s ap
+  if not randpercent
+  [
+    set a one-of ap  
+  ]
+
   ;print a
   workerperformaction a ;; greedily choose the action with the highest value
   ;updateQ with the reward
@@ -270,7 +282,7 @@ to-report maxQandactiongivenpossibleactions [ap a-q]
 end
 
 to-report initializeQactions[ap a-q]
-  let defaultq 1
+  let defaultq qinit
   ;; initialize an action if it isn't in the list
   foreach ap
   [
@@ -330,7 +342,7 @@ to-report whatsonthepatch [p]
     [report 3]
   ]
   [
-    let fakepaver? false
+    let fakepaver? false ; check if the patch ahead has a paver
     ask p [set fakepaver? paver?]
     
     ifelse fakepaver?
@@ -410,7 +422,10 @@ to-report workerpossibleactions
   if workerhome; if the worker is at a producer
   [
      set alist lput 8 alist 
+     if one-of producers-here with[ (not hidden?) and (length productstack > 0)] != nobody
+     [
      set alist lput 9 alist
+     ]
   ]
   if carryingpaver? and canplacepaver
   [
@@ -1137,21 +1152,61 @@ to displaypoweravailable ;;patch function
     set plabel ""
   ]
 end
-
 to calculateproductivity
-;there is a bug in this function
+  let productionlist produceroperation ;;list of stuff that is currently being made
+  let inventorylist producerinventory ;; list of stuff held in inventory
+  let pbeingmade item 0 productionlist
+  let scbeingmade item 1 productionlist
+  let wbeingmade item 2 productionlist
+  let probeingmade item 3 productionlist
+  let carriedpavers 0
+  let producerpavers 0
+  let placedpavers count patches with [ paver? ]
+  ask workers [
+    set carriedpavers count workers with [ carryingpaver? ]
+  ]
+  
+  let currentp  placedpavers + 0.75 * carriedpavers + 0.5 *(item 0 inventorylist) + 0.25 * pbeingmade 
+  set dpavers currentp - npavers 
+  set npavers currentp ;update number of pavers
+  
+  let sccount (count solarcells) + scbeingmade
+;;  ask patches [
+;;    let solarcellsplaced count patches with  [ solarcells? ]
+;;  ]
+;  ask producer [
+;    let solarcellsproducing count producer with [ solarcells ]
+;  ]
 
-  let foo1 count patches with [ paver? ]
-  set dpavers foo1 - npavers 
-  let foo2 count solarcells
-  set dsolarcells foo2 - nsolarcells
-  let foo3 count workers
-  set dworkers foo3 - nworkers
-  let foo4 count producers
-  set dproducers foo4 - nproducers
-  set productivity (dpavers + dsolarcells + dworkers + dproducers) / (npavers + nsolarcells + nworkers + nproducers)
+;  let x2 foo2 + solarcellsplaced + solarcellsproducing
+  set dsolarcells sccount - nsolarcells
+  set nsolarcells sccount
+  let wcount (count workers) + wbeingmade
+  set dworkers wcount - nworkers
+  set nworkers wcount
+;  
+;  ask producer [
+;    let workerproducing count producer with [ productid 2 ]
+;  ]
+;  let x3 workerworking + workerproducing
+;  set dworkers x3 - nworkers
+;  
+  let procount (count producers) + probeingmade
+;  ask patches [
+;    let producerspresent count patches with [ producer? ]
+;  ]
+;  ask producers [
+;    let newproducers count producer with [ productid 3 ]
+;  ]
+
+;  let x4 foo4 + producerspresent + newproducers
+  set dproducers procount - nproducers
+  set nproducers procount
+;  
+;  
+;  
+set productivity (dpavers + dsolarcells + dworkers + dproducers) / (placedpavers + nsolarcells + nworkers + nproducers)
 end
-
 to recolor-patches
   ifelse paver?
   [set pcolor yellow]
@@ -1159,6 +1214,53 @@ to recolor-patches
   
 end
 
+to-report producerinventory
+  ;take inventory of producers
+  let pcount 0
+  let sccount 0
+  let wcount 0
+  let procount 0
+  ask producers with[(not hidden?) and (length idstack > 0)]
+  [
+    set pcount pcount + (length filter [? = 0] idstack)
+    set sccount sccount + (length filter [? = 1] idstack)
+    set wcount wcount + (length filter [? = 2] idstack)
+    set procount procount + (length filter [? = 3] idstack)
+  ]
+  report (list pcount sccount wcount procount)
+end
+
+to-report produceroperation
+;;the amount of a product being made
+let pcount 0
+let sccount 0
+let wcount 0
+let procount 0
+ask producers with[not hidden? and productid > -1]
+ [
+      let costvector item productid productcostinformation
+      let turns item 2 costvector ;; total turns to produce product
+      
+      let percomplete  (turns - turnsleft) / turns ;;percent complete
+      if productid = 0
+      [set pcount pcount + percomplete ]
+      if productid = 1
+      [set sccount sccount + percomplete]
+      if productid = 2
+      [set wcount wcount + percomplete ]
+      if productid = 3
+      [set procount procount + percomplete]
+      
+ ]
+report (list pcount sccount wcount procount)
+
+end
+to workerinventory
+let pcount 0
+let sccount 0
+let wcount 0
+let procount 0
+end
 to find-clusters
 ;;paver cluster finding function
 ;;reset everything
@@ -1196,6 +1298,13 @@ to show-clusters
     [ ask patches with [cluster = [cluster] of myself]
       [ set plabel counter ] ]
     set counter counter + 1 ]
+end
+
+to-report randpercent
+  
+  ifelse (random-float 1) > randompercent
+  [report true]
+  [report false]
 end
 
 to-report randbool
@@ -1327,17 +1436,6 @@ globalidletime
 1
 11
 
-MONITOR
-45
-414
-133
-459
-NIL
-productivity
-17
-1
-11
-
 SLIDER
 20
 141
@@ -1347,7 +1445,7 @@ discountrate
 discountrate
 0
 1
-0.05
+0.4
 0.05
 1
 NIL
@@ -1362,11 +1460,55 @@ alpha
 alpha
 0
 1
+0.1
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+717
+52
+890
+85
+randompercent
+randompercent
+0
+1
 0.05
 0.05
 1
 NIL
 HORIZONTAL
+
+PLOT
+729
+157
+929
+307
+plot 1
+time
+NIL
+0.0
+10.0
+0.0
+0.5
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot productivity"
+
+MONITOR
+59
+410
+147
+455
+NIL
+productivity
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
