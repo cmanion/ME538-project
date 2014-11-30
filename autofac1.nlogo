@@ -32,8 +32,9 @@ globals[
   nsolarcells 
   nworkers 
   nproducers
-  alpha
-  discountrate
+  
+  workerminingreward
+  workerdeliveryreward
   ]
 
 
@@ -101,7 +102,7 @@ to go
  addpower
  calculatepaversavailable
  calculateregolithavailable
-
+ 
  ask producers with [not hidden?]
  [
    ;;startproducingproduct 2 ;; for fun
@@ -113,7 +114,7 @@ to go
  
  ask patches [generate-radiofields]
  ask workers  with [not hidden?]
- [workercanned]
+ [worker-learning]
   incrementproduceridlecount
  calculateglobalidletime
  calculateproductivity
@@ -139,6 +140,8 @@ to setglobals
   set regolithavailable 0
   set w5 1
   set productivity 0
+  set workerminingreward 2
+  set workerdeliveryreward 5
   set npavers 9
   set alpha 0.1
   set discountrate 0.4
@@ -197,13 +200,16 @@ end
 to worker-learning
   ;figure out what the worker can dow
   let ap workerpossibleactions
+  let prevradio-a radio-a
   ;get the state of the worker
   ;let s (list random 3 random 3 random 3 random 3 random 3)
   let s sensorscan
-  print s
-  let a item 1 maximumQvalueandaction Qw s ap
+  ;print s
+  let a item 0 maximumQvalueandaction Qw s ap
+  ;print a
   workerperformaction a ;; greedily choose the action with the highest value
   ;updateQ with the reward
+  if (radio-a > prevradio-a) and wregolith > 0 [set wreward wreward + (wregolith / workerregolithcapacity)]
   updateQ Qw s a wreward ap
   ;let
   set wreward 0
@@ -864,6 +870,7 @@ to mine
     ;;set remaining regolith - workeramounttomine ;;
     set regolith regolith - workeramounttomine ;; worker can mine it to be less than 0, need to change this, but it should be fine for now
     set wregolith wregolith + workeramounttomine
+    set wreward wregolith * workerminingreward
   ]
 end
 
@@ -896,6 +903,7 @@ to transferregolithtoproducer
        ask myself
        [
           set wregolith wregolith - regtransfer
+          set wreward regtransfer * workerdeliveryreward
             
        ]
     ]
@@ -1329,6 +1337,36 @@ productivity
 17
 1
 11
+
+SLIDER
+20
+141
+192
+174
+discountrate
+discountrate
+0
+1
+0.05
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+21
+107
+193
+140
+alpha
+alpha
+0
+1
+0.05
+0.05
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
