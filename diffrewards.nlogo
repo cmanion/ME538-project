@@ -77,6 +77,7 @@ producers-own[
   intensityc
   idlecount
   workerQ
+  Qp
   ]
 workers-own[
   wregolith
@@ -87,8 +88,8 @@ workers-own[
   idle
   Qw
   ;prevstate ;;previous state
-  ;actionperformed
-  rewardflag; for dropping off regolith
+  actionperformed; what action the agent just successfully accomplished(IE regolith transfer)
+  result; used to keep track of how much changed when the agent performed the action. IE how much regolith was mined or transfered
   wreward
   ]
 to setup
@@ -315,7 +316,7 @@ to workerpowerdepletionpenalty
   [ 
   move-to one-of patches with[paver?]
   set wregolith 0
-  set wreward -1 
+  set wreward 0 
   ]
 end
 to-report indexofmaxvalueinlist [inlist]
@@ -391,6 +392,7 @@ to-report sensorscan
     set heading ? * 45
     set sensorlist lput (whatsonthepatch patch-ahead 1 ) sensorlist 
   ]
+  set sensorlist lput ((ceiling (4 * (wcharge / workerbatterycapacity) )) / 4) sensorlist
   report sensorlist
   
   
@@ -432,6 +434,14 @@ to workerperformaction [action]
     uphillradioa  
   ]
   
+  if action = 13
+  [
+    gohomemining
+  ]
+  if action = 14
+  [
+    gohomeplace  
+  ]
 end
 
 to-report workerpossibleactions
@@ -466,6 +476,53 @@ to-report workerpossibleactions
   report alist
 end
 
+to-report producerpossibleactions
+let alist []
+
+if (capacity > 0) and productid = -1
+[set alist lput 0 alist
+ set alist lput 1 alist
+ 
+ if capacity >= 4
+ [
+   
+   set alist lput 2 alist
+   set alist lput 3 alist
+ ] 
+ 
+ ]
+ if productid > -1
+ [
+ set alist lput 6 alist ;opt not to produce product
+ ]
+ set alist lput 7 alist ; null action, just produce the product and nothing else 
+ set alist lput 8 alist;
+ set alist lput 9 alist; tell a small lie
+ set alist lput 10 alist;
+ set alist lput 11 alist; tell a big lie 
+report alist
+end
+
+to performactionproducer [action]
+   
+   if action != 6 [produceproduct]
+   if action <= 3
+   [
+    startproducingproduct action  
+   ]
+   
+   if action = 8  
+   [set intensityb intensityb + 2] ;;lie about how badly regolith is needed by a small amount
+   if action = 9
+   [set intensityc intensityc + 2] ; lie about how badly inventory needs to be removed by a small amount
+   if action = 10  
+   [set intensityb intensityb + 5] ;;lie about how badly regolith is needed by a large amount 
+   if action = 11
+   [set intensityc intensityc + 5] ; lie about how badly inventory needs to be removed by a large amount
+   
+end
+
+
 to calculateglobalidletime
   set globalidletime 0
   let pcount count producers with [not hidden?]
@@ -485,6 +542,8 @@ to calculateregolithavailable
     
   ]
 end
+
+
 
 to generate-radiofields ;;patch procedure for setting up radiofields
   set radio-a 0
@@ -835,11 +894,11 @@ to miningmodecanned
 end
 
 to gohomemining
-  movetowardagent producerwithmaxradiob
+  movetowardagent2 producerwithmaxradiob
 end
 
 to gohomeplace
-  movetowardagent producerwithmaxradioc
+  movetowardagent2 producerwithmaxradioc
 end 
 
 to movetowardagent [a] 
@@ -848,6 +907,14 @@ if [distance a] of p < (distance a)
 [
   face p
   move-to p
+]
+end
+to movetowardagent2 [a]
+let p min-one-of neighbors[distance a]
+if [distance a] of p < (distance a) 
+[
+  
+  move-tousingpower p
 ]
 end
 to-report workerhome
@@ -930,10 +997,21 @@ to mine
   
   if ((regolith > 0) and (not paver?) and (workerusecharge workerchargetomine) and (wregolith < workerregolithcapacity))
   [
-    ;;set remaining regolith - workeramounttomine ;;
-    set regolith regolith - workeramounttomine ;; worker can mine it to be less than 0, need to change this, but it should be fine for now
-    set wregolith wregolith + workeramounttomine
-    set wreward wregolith * workerminingreward
+    ;;set remaining regolith - workeramounttomine ;
+    let amountmineable workeramounttomine; how much can we mine
+    if (workeramounttomine + wregolith) > workerregolithcapacity
+    [
+     set amountmineable workerregolithcapacity - wregolith
+    ]
+    if (regolith - amountmineable) < 0
+    [
+     set amountmineable regolith  
+    ]
+    set regolith regolith - amountmineable ;; worker can mine it to be less than 0, need to change this, but it should be fine for now
+    set wregolith wregolith + amountmineable ;; BUG HERE REMOVE BUG
+    set wreward amountmineable * workerminingreward
+    set actionperformed 1
+    set result amountmineable
   ]
 end
 
@@ -967,7 +1045,8 @@ to transferregolithtoproducer
        [
           set wregolith wregolith - regtransfer
           set wreward regtransfer * workerdeliveryreward
-            
+          set actionperformed 0
+          set result regtransfer  
        ]
     ]
   ]
@@ -1552,7 +1631,7 @@ randompercent
 randompercent
 0
 1
-0.05
+0.15
 0.05
 1
 NIL
