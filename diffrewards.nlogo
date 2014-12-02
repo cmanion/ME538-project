@@ -113,8 +113,8 @@ ifelse graphicstoggle
 [set-default-shape workers "bulldozer top"
   set-default-shape producers "factory"]
 set-default-shape launchers "container"
-setup-seed 0 0
-
+setup-seed -2 0
+setup-seed 1 0
 recolor-all
 reset-ticks
 end
@@ -134,8 +134,9 @@ to go
  ]
  
  ask patches [generate-radiofields]
- ask workers  with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) ]
- [worker-learning]
+ ;ask workers  with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) ]
+ ;[worker-learning]
+ worker-difference-rewards
  ;[workercanned]
   incrementproduceridlecount
  calculateglobalidletime
@@ -230,7 +231,7 @@ end
 
 to worker-difference-rewards
   ;; run workers
-  ask workers
+  ask workers with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) ]
   [
   set ap workerpossibleactions
   let prevradio-a radio-a
@@ -248,16 +249,18 @@ to worker-difference-rewards
   if (radio-a > prevradio-a) and wregolith > 0 [set wreward wreward + (wregolith / workerregolithcapacity)] ; go home potential
   
   ]
-  calculateproductivity
-  ask workers
-  [
-  if actionperformed = 1
-  [
-   ;dregolith - result --> recalculate reward
-   ;set wreward wreward + (productivity  
-  ]
+  ;let fakepro 0
   
-  updateQ Qw s aw wreward ap 
+  calculateproductivity
+  ask workers with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) and (s != 0) ]
+  [
+    
+  set wreward wreward + 10 * (productivity - productivitywithoutworker)
+  
+  updateQ Qw s aw wreward ap
+  set wreward 0
+  set actionperformed 0
+  set result 0
   ]
 end
 
@@ -1428,8 +1431,89 @@ to calculateproductivity
 ;  
 ;  
 ;  
-set productivity (dregolith + dpavers + dsolarcells + dworkers + dproducers) ;/ ( (placedpavers + placedsolarcells + (count workers) + placedproducers))
+set productivity (dregolith + dpavers + dsolarcells + dworkers + dproducers) / ( (placedpavers + placedsolarcells + (count workers) + placedproducers))
 end
+
+to-report productivitywithoutworker ;worker function
+  ; this function assumes calculate productivity has already been run
+  let productionlist produceroperation ;;list of stuff that is currently being made
+  let inventorylist producerinventory ;; list of stuff held in inventory
+  let winventory workerinventory ;; list of stuff carried by workers
+  let pbeingmade item 0 productionlist
+  let scbeingmade item 1 productionlist
+  let wbeingmade item 2 productionlist
+  let probeingmade item 3 productionlist
+  let carriedpavers 0
+  let producerpavers 0
+  let placedpavers count patches with [ paver? ]
+  let placedsolarcells count solarcells with [not hidden?]
+  let placedproducers count producers with [not hidden?]
+  set carriedpavers item 0 winventory
+  let workerregolith (item 4 winventory)
+  let producerregolith (item 4 producerinventory)
+  if actionperformed = 1
+  [set workerregolith workerregolith - result]
+  if actionperformed = 2
+  [set producerregolith producerregolith - result]
+  let curregolith 0.5 * workerregolith + producerregolith
+  let paversinstorage (item 0 inventorylist)
+  let dregolithl curregolith - regolithheld
+  if dregolith < 0 [set dregolith 0]
+  
+  ;;set regolithheld curregolith 
+  if actionperformed = 3
+  [ 
+    set carriedpavers carriedpavers - 1 
+    ;set paversinstorage paversinstorage + 1
+  ]
+  if actionperformed = 6
+  [
+    set placedpavers placedpavers - 1
+    ;set carriedpavers carriedpavers + 1 
+  ]
+  let currentp  placedpavers + 0.75 * carriedpavers + 0.5 * paversinstorage + 0.25 * pbeingmade 
+  let dpaversl currentp - npavers 
+  
+  let workersolarcells item 1 winventory
+  let producersolarcells item 1 producerinventory
+  if actionperformed = 4
+  [
+    set workersolarcells workersolarcells - 1
+    ;set producersolarcells producersolarcells + 1
+  ]
+  if actionperformed = 7
+  [set placedsolarcells placedsolarcells - 1]
+  let sccount placedsolarcells + 0.75 * workersolarcells + 0.5 * producersolarcells + 0.25 * scbeingmade 
+  
+  let dsolarcellsl sccount - nsolarcells
+ 
+  let wcount (count workers - 1) + wbeingmade
+  let dworkersl wcount - nworkers
+  
+;  
+
+  let workerproducers item 3 winventory
+  let producerproducers item 3 producerinventory
+  if actionperformed = 5
+  [
+    set workerproducers workerproducers - 1
+    ;set producerproducers producerproducers + 1
+  ]
+  if actionperformed = 8
+  [set placedproducers placedproducers - 1]
+  let procount placedproducers + 0.75 * workerproducers + 0.5 * producerproducers + 0.25 * probeingmade
+  
+
+;  let x4 foo4 + producerspresent + newproducers
+  let dproducersl procount - nproducers
+  
+;  
+;  
+;  
+report (dregolithl + dpaversl + dsolarcellsl + dworkersl + dproducersl) / ( (placedpavers + placedsolarcells + (count workers - 1) + placedproducers))
+end
+
+
 to recolor-patches
   ifelse paver?
   [set pcolor yellow]
@@ -1567,12 +1651,12 @@ to-report lastitem [a_list]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-201
+212
 10
-706
-536
-16
-16
+837
+656
+20
+20
 15.0
 1
 10
@@ -1583,10 +1667,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--16
-16
--16
-16
+-20
+20
+-20
+20
 1
 1
 1
@@ -1632,7 +1716,7 @@ BUTTON
 177
 207
 211
-NIL
+make pavers
 tellproducerstomakepaver
 NIL
 1
@@ -1649,7 +1733,7 @@ BUTTON
 225
 219
 259
-NIL
+make solar cell
 tellproducerstomakesolarcell
 NIL
 1
@@ -1703,37 +1787,37 @@ NIL
 HORIZONTAL
 
 SLIDER
-717
-52
-890
-85
+975
+270
+1148
+303
 randompercent
 randompercent
 0
 1
-0.15
+0.3
 0.05
 1
 NIL
 HORIZONTAL
 
 PLOT
-718
-88
-918
-238
+862
+108
+1062
+258
 Productivity
 time
 productivity
 0.0
 10.0
 0.0
-10.0
+1.0
 true
 false
 "" ""
 PENS
-"default" 2.0 0 -5298144 true "" "plot productivity"
+"default" 1.0 0 -5298144 true "" "plot productivity"
 
 MONITOR
 59
@@ -1758,10 +1842,10 @@ beaconmode?
 -1000
 
 MONITOR
-732
-388
-830
-433
+876
+408
+974
+453
 worker count
 count workers with [not hidden?]
 17
@@ -1769,10 +1853,10 @@ count workers with [not hidden?]
 11
 
 MONITOR
-732
-339
-841
-384
+876
+359
+985
+404
 solarcell count
 count solarcells with [not hidden?]
 17
@@ -1780,10 +1864,10 @@ count solarcells with [not hidden?]
 11
 
 MONITOR
-730
-437
-842
-482
+874
+457
+986
+502
 producer count
 count producers with [not hidden?]
 17
@@ -1791,10 +1875,10 @@ count producers with [not hidden?]
 11
 
 MONITOR
-730
-286
-820
-331
+874
+306
+964
+351
 paver count
 count patches with [paver?]
 17
@@ -1808,9 +1892,27 @@ SWITCH
 81
 graphicstoggle
 graphicstoggle
-1
+0
 1
 -1000
+
+PLOT
+1002
+316
+1202
+466
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count producers with [not hidden?]"
 
 @#$#@#$#@
 ## WHAT IS IT?
