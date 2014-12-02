@@ -104,10 +104,14 @@ clear-all
 setglobals
 setup-patches
 set-default-shape solarcells "die 6"
-set-default-shape producers "factory"
-;;set-default-shape producers "square"
-set-default-shape workers "default"
-;;set-default-shape workers "bulldozer top"
+
+;;
+ifelse graphicstoggle 
+[set-default-shape workers "default"
+  set-default-shape producers "square"
+  ]
+[set-default-shape workers "bulldozer top"
+  set-default-shape producers "factory"]
 set-default-shape launchers "container"
 setup-seed 0 0
 
@@ -1707,7 +1711,7 @@ randompercent
 randompercent
 0
 1
-0
+0.15
 0.05
 1
 NIL
@@ -1796,6 +1800,17 @@ count patches with [paver?]
 17
 1
 11
+
+SWITCH
+912
+48
+1077
+81
+graphicstoggle
+graphicstoggle
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
