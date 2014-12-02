@@ -229,6 +229,17 @@ to worker-learning
   ;print a
   workerperformaction a ;; greedily choose the action with the highest value
   ;updateQ with the reward(
+  
+  if actionperformed = 1
+  [ set wreward result * workerminingreward] ; reward for mining
+  if actionperformed = 2 
+  [set wreward result * workerdeliveryreward]; reward for delivering stuff
+  if member? actionperformed [3 4 5] ;reward for picking stuff up
+  [set wreward result * 1.1]
+  if member? actionperformed [6 7 8]; reward for placing stuff
+  [set wreward result * 2]
+ 
+   
   if (radio-a > prevradio-a)
   [
   set wreward wreward + ((workerbatterycapacity - wcharge) / workerbatterycapacity)  
@@ -237,7 +248,11 @@ to worker-learning
   ;workerpowerdepletionpenalty does not seem to work well
   updateQ Qw s a wreward ap
   ;let
+  ;show Qw
+  ;show table:from-list (table:to-list Qw) 
   set wreward 0
+  set actionperformed 0
+  set result 0
   
 end
 
@@ -454,7 +469,8 @@ to-report workerpossibleactions
   ]
   if workerhome; if the worker is at a producer
   [
-     set alist lput 8 alist 
+     if wregolith > 0
+     [set alist lput 8 alist]
      if one-of producers-here with[ (not hidden?) and (length productstack > 0)] != nobody
      [
      set alist lput 9 alist
@@ -577,7 +593,7 @@ to setup-seed[ x y]
     initializeproducer
     
   ]
-  create-workers 1
+  create-workers 2
   [
    setxy x y
    set heading 0
@@ -705,7 +721,7 @@ to produceproduct
        hatch-workers 1
        [
          initializeworker
-         set Qw Qtoset
+         set Qw table:from-list (table:to-list Qtoset) ;this way we aren't using a table immutably
          fd 1 
        ]
       set productid -1
@@ -776,11 +792,18 @@ to pickupproductfromproducer ;; worker function
       set workerQ Qtoset
       ask myself; switch back to worker
       [
-          if product = 1
+          set result 1
+          ifelse product = 1
           [
             set carryingpaver? true
+            set actionperformed 3
+          ]
+          [
+            if is-solarcell? product [set actionperformed 4]
+            if is-producer? product [set actionperformed 5]
           ]
           set itemheld product  
+         
       ]
     ]
     ]
@@ -797,6 +820,8 @@ to putdown
         set paver? true
         set pcolor yellow
         set itemheld nobody
+        set actionperformed 6
+        set result 1
       ]
     ]
     [
@@ -809,7 +834,12 @@ to putdown
         [
           ask itemheld [move-to myself]
           ask itemheld [st] ;show the item
+          set result 1
+         
+          if is-solarcell? itemheld [set actionperformed 7]
+          if is-producer? itemheld [set actionperformed 8 ]
           set itemheld nobody
+          
         ]
     ] 
     ]
@@ -1009,7 +1039,7 @@ to mine
     ]
     set regolith regolith - amountmineable ;; worker can mine it to be less than 0, need to change this, but it should be fine for now
     set wregolith wregolith + amountmineable ;; BUG HERE REMOVE BUG
-    set wreward amountmineable * workerminingreward
+    ;set wreward amountmineable * workerminingreward
     set actionperformed 1
     set result amountmineable
   ]
@@ -1044,8 +1074,8 @@ to transferregolithtoproducer
        ask myself
        [
           set wregolith wregolith - regtransfer
-          set wreward regtransfer * workerdeliveryreward
-          set actionperformed 0
+          ;set wreward regtransfer * workerdeliveryreward
+          set actionperformed 2
           set result regtransfer  
        ]
     ]
@@ -1281,7 +1311,7 @@ end
 
 to displaypoweravailable ;;patch function
   ifelse paver?[
-    set plabel poweravailable
+    set plabel round poweravailable
   ]
   [
     set plabel ""
@@ -1676,6 +1706,39 @@ beaconmode?
 1
 1
 -1000
+
+MONITOR
+732
+388
+830
+433
+worker count
+count workers with [not hidden?]
+17
+1
+11
+
+MONITOR
+732
+339
+841
+384
+solarcell count
+count solarcells with [not hidden?]
+17
+1
+11
+
+MONITOR
+730
+437
+842
+482
+producer count
+count producers with [not hidden?]
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
