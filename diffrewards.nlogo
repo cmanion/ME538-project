@@ -33,6 +33,10 @@ globals[
   nsolarcells 
   nworkers 
   nproducers
+  ;prevpavers
+  ;prevsolarcells
+  ;prevproducers
+  ;prevregolith
   qinit
   workerminingreward
   workerdeliveryreward
@@ -41,7 +45,7 @@ globals[
   ;pturns
   ;scturns
   ;wturns
-  ;proturns
+  ;proturn
   ]
 
 
@@ -91,6 +95,9 @@ workers-own[
   actionperformed; what action the agent just successfully accomplished(IE regolith transfer)
   result; used to keep track of how much changed when the agent performed the action. IE how much regolith was mined or transfered
   wreward
+  aw ; action that 
+  s
+  ap
   ]
 to setup
 clear-all
@@ -188,6 +195,12 @@ to setup-regolith
 end
 
 to recolor-all
+  ask workers with [wcharge = 0 and (not paver?)]
+  [set color violet]
+  ask workers with[wcharge > 0]
+  [
+    set color red
+    ]
   ask patches
   [
     ifelse beaconmode? [recolor-patcheswithbeacon]
@@ -202,8 +215,8 @@ to qtest
 ;; function for testing Q
   setglobals
   let Q table:make
-  let s (list 1 2 3 4 5)
-  let ap (list 1 2 3)
+  set s (list 1 2 3 4 5)
+  set ap (list 1 2 3)
   let foo maximumQvalueandaction Q s ap
   print foo
   print Q
@@ -211,23 +224,56 @@ to qtest
   print Q
 end
 
+to worker-difference-rewards
+  ;; run workers
+  ask workers
+  [
+  set ap workerpossibleactions
+  let prevradio-a radio-a
+  set s sensorscan
+  set aw item 0 maximumQvalueandaction Qw s ap
+  if not randpercent
+  [
+    set aw one-of ap  
+  ]
+  workerperformaction aw ;; greedily choose the action with the highest value
+  if (radio-a > prevradio-a)
+  [
+  set wreward wreward + ((workerbatterycapacity - wcharge) / workerbatterycapacity) ; don't die potential  
+  ]
+  if (radio-a > prevradio-a) and wregolith > 0 [set wreward wreward + (wregolith / workerregolithcapacity)] ; go home potential
+  
+  ]
+  calculateproductivity
+  ask workers
+  [
+  if actionperformed = 1
+  [
+   ;dregolith - result --> recalculate reward
+   ;set wreward wreward + (productivity  
+  ]
+  
+  updateQ Qw s aw wreward ap 
+  ]
+end
+
 to worker-learning
   ;figure out what the worker can dow
   
-  let ap workerpossibleactions
+  set ap workerpossibleactions
   let prevradio-a radio-a
   ;get the state of the worker
   ;let s (list random 3 random 3 random 3 random 3 random 3)
-  let s sensorscan
+  set s sensorscan
   ;print s
-  let a item 0 maximumQvalueandaction Qw s ap
+  set aw item 0 maximumQvalueandaction Qw s ap
   if not randpercent
   [
-    set a one-of ap  
+    set aw one-of ap  
   ]
 
   ;print a
-  workerperformaction a ;; greedily choose the action with the highest value
+  workerperformaction aw ;; greedily choose the action with the highest value
   ;updateQ with the reward(
   
   if actionperformed = 1
@@ -246,7 +292,7 @@ to worker-learning
   ]
   if (radio-a > prevradio-a) and wregolith > 0 [set wreward wreward + (wregolith / workerregolithcapacity)]
   ;workerpowerdepletionpenalty does not seem to work well
-  updateQ Qw s a wreward ap
+  updateQ Qw s aw wreward ap
   ;let
   ;show Qw
   ;show table:from-list (table:to-list Qw) 
@@ -256,45 +302,45 @@ to worker-learning
   
 end
 
-to updateQ [Q s a r ap]
+to updateQ [Q sl al r apl]
   ;; Q is qtable
   ;;s states
   ;;a action
   ;;r reward
   ;;updates a Q matrix
   ;;r is reward received
-  let a-q table:get Q s ;; list of actions and Q values
-  let index position a map first a-q ;; the the index of the action and q-value
+  let a-q table:get Q sl ;; list of actions and Q values
+  let index position aw map first a-q ;; the the index of the action and q-value
   let curQ item 1 item index a-q;;current Q value
-  let maxQ item 1 maximumQvalueandaction Q s ap
+  let maxQ item 1 maximumQvalueandaction Q sl apl
   let nexQ (curQ + alpha *( r + discountrate * maxQ - curQ))
   set a-q (replace-item index a-q (replace-item 1 (item index a-q) nexQ))
-  table:put Q s a-q
+  table:put Q sl a-q
   
 end
 
-To-report maximumQvalueandaction [Q s ap]
+To-report maximumQvalueandaction [Q sl apl]
   ;;finds the maximum Q value and action given a Q matrix, current state, possible actions
   ;;Q is a table with keys as states and a list of actions and Q values
   ;;ap are the possible actions, 
   ;;ap list of integers
  ; if not table:has-key? Q
  ;qa is the list of actions and Q values
-   if not table:has-key? Q s
+   if not table:has-key? Q sl
   [
-    table:put Q s (list)
+    table:put Q sl (list)
   ]
-  let a-q table:get Q s
+  let a-q table:get Q sl
   ;;initialize Q
   set a-q initializeQactions ap a-q
-  table:put Q s a-q
+  table:put Q sl a-q
   ;;find a list of action Q values only from the actions that are available
-  let filteractions filter [member? first ? ap] a-q
+  let filteractions filter [member? first ? apl] a-q
   let index indexofmaxvalueinlist map last filteractions;; 
   report item index filteractions  
 end
 
-to-report maxQandactiongivenpossibleactions [ap a-q]
+to-report maxQandactiongivenpossibleactions [apl a-q]
   ;;a-q must already be initialized
   ;;maxQandactiongivenpossibleactions (list 1) (list (list 1 1) (list 2 3))
   ;;
@@ -304,15 +350,15 @@ to-report maxQandactiongivenpossibleactions [ap a-q]
 
   ;let plist 
   ;;find a list of action Q values only from the actions that are available
-  let filteractions filter [member? first ? ap] a-q
+  let filteractions filter [member? first ? apl] a-q
   let index indexofmaxvalueinlist map last filteractions;; 
   report item index filteractions
 end
 
-to-report initializeQactions[ap a-q]
+to-report initializeQactions[apl a-q]
   let defaultq qinit
   ;; initialize an action if it isn't in the list
-  foreach ap
+  foreach apl
   [
     ;; find if a value is not in the first part of the lsit
   if not member? ?1 map first a-q
@@ -1378,7 +1424,7 @@ to calculateproductivity
 ;  
 ;  
 ;  
-set productivity (dregolith + dpavers + dsolarcells + dworkers + dproducers) / (placedpavers + placedsolarcells + (count workers) + placedproducers)
+set productivity (dregolith + dpavers + dsolarcells + dworkers + dproducers) ;/ ( (placedpavers + placedsolarcells + (count workers) + placedproducers))
 end
 to recolor-patches
   ifelse paver?
@@ -1661,20 +1707,20 @@ randompercent
 randompercent
 0
 1
-0.15
+0
 0.05
 1
 NIL
 HORIZONTAL
 
 PLOT
-729
-157
-929
-307
-test
-NIL
-workers
+718
+88
+918
+238
+Productivity
+time
+productivity
 0.0
 10.0
 0.0
@@ -1683,7 +1729,7 @@ true
 false
 "" ""
 PENS
-"default" 0.5 0 -5298144 true "" "plot productivity"
+"default" 2.0 0 -5298144 true "" "plot productivity"
 
 MONITOR
 59
@@ -1736,6 +1782,17 @@ MONITOR
 482
 producer count
 count producers with [not hidden?]
+17
+1
+11
+
+MONITOR
+730
+286
+820
+331
+paver count
+count patches with [paver?]
 17
 1
 11
