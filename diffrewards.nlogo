@@ -41,7 +41,9 @@ globals[
   workerminingreward
   workerdeliveryreward
   regolithheld ; total regolith held
- 
+  winventory
+  productionlist; how much is being produces
+  inventorylist;
   ;pturns
   ;scturns
   ;wturns
@@ -136,11 +138,18 @@ to go
  ask patches [generate-radiofields]
  ;ask workers  with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) ]
  ;[worker-learning]
- worker-difference-rewards
+ if rewardtype = 1
+ [ask workers  with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) ] [workercanned]]
+ if rewardtype = 2
+ [ask workers  with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) ] [worker-learning]]
+ if rewardtype = 3
+ 
+ [worker-difference-rewards]
  ;[workercanned]
-  incrementproduceridlecount
+ incrementproduceridlecount
  calculateglobalidletime
- calculateproductivity
+ if rewardtype != 3
+ [calculateproductivity]
  recolor-all
  ask patches [displaypoweravailable]
  tick
@@ -900,10 +909,13 @@ to putdown
   
 end 
 to workercanned
-  if state = 1
+  ifelse wcharge < (workerbatterycapacity / 2)
+  [uphillradioa]
+  [if state = 1
   [miningmodecanned]
   if state = 2
-  [pickandplacecanned]
+  [pickandplacecanned]]
+  workerrecharge
 end
 to pickandplacecanned
   ifelse itemheld = nobody
@@ -1372,9 +1384,9 @@ to displaypoweravailable ;;patch function
 end
 
 to calculateproductivity
-  let productionlist produceroperation ;;list of stuff that is currently being made
-  let inventorylist producerinventory ;; list of stuff held in inventory
-  let winventory workerinventory ;; list of stuff carried by workers
+  set productionlist produceroperation ;;list of stuff that is currently being made
+  set inventorylist producerinventory ;; list of stuff held in inventory
+  set winventory workerinventory ;; list of stuff carried by workers
   let pbeingmade item 0 productionlist
   let scbeingmade item 1 productionlist
   let wbeingmade item 2 productionlist
@@ -1388,7 +1400,7 @@ to calculateproductivity
   set carriedpavers item 0 winventory
   
   let curregolith 0.5 * (item 4 winventory) + (item 4 producerinventory)  
-  set dregolith curregolith - regolithheld
+  set dregolith abs( curregolith - regolithheld)
   if dregolith < 0 [set dregolith 0]
   
   set regolithheld curregolith 
@@ -1436,9 +1448,9 @@ end
 
 to-report productivitywithoutworker ;worker function
   ; this function assumes calculate productivity has already been run
-  let productionlist produceroperation ;;list of stuff that is currently being made
-  let inventorylist producerinventory ;; list of stuff held in inventory
-  let winventory workerinventory ;; list of stuff carried by workers
+  ;let productionlist produceroperation ;;list of stuff that is currently being made
+  ;let inventorylist producerinventory ;; list of stuff held in inventory
+  ;set winventory workerinventory ;; list of stuff carried by workers
   let pbeingmade item 0 productionlist
   let scbeingmade item 1 productionlist
   let wbeingmade item 2 productionlist
@@ -1457,7 +1469,7 @@ to-report productivitywithoutworker ;worker function
   [set producerregolith producerregolith - result]
   let curregolith 0.5 * workerregolith + producerregolith
   let paversinstorage (item 0 inventorylist)
-  let dregolithl curregolith - regolithheld
+  let dregolithl abs(curregolith - regolithheld)
   if dregolith < 0 [set dregolith 0]
   
   ;;set regolithheld curregolith 
@@ -1712,10 +1724,10 @@ NIL
 1
 
 BUTTON
--23
-177
-207
-211
+1013
+10
+1243
+44
 make pavers
 tellproducerstomakepaver
 NIL
@@ -1729,10 +1741,10 @@ NIL
 1
 
 BUTTON
--23
-225
-219
-259
+1016
+49
+1258
+83
 make solar cell
 tellproducerstomakesolarcell
 NIL
@@ -1746,10 +1758,10 @@ NIL
 1
 
 MONITOR
-36
-357
-140
-402
+47
+283
+151
+328
 NIL
 globalidletime
 17
@@ -1757,10 +1769,10 @@ globalidletime
 11
 
 SLIDER
-20
-141
-192
-174
+22
+189
+194
+222
 discountrate
 discountrate
 0
@@ -1772,10 +1784,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-21
-107
-193
-140
+23
+155
+195
+188
 alpha
 alpha
 0
@@ -1787,15 +1799,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-975
-270
-1148
-303
+21
+227
+194
+260
 randompercent
 randompercent
 0
 1
-0.3
+1
 0.05
 1
 NIL
@@ -1820,10 +1832,10 @@ PENS
 "default" 1.0 0 -5298144 true "" "plot productivity"
 
 MONITOR
-59
-410
-147
-455
+70
+336
+158
+381
 NIL
 productivity
 17
@@ -1831,10 +1843,10 @@ productivity
 11
 
 SWITCH
-20
-288
-178
-321
+849
+10
+1007
+43
 beaconmode?
 beaconmode?
 1
@@ -1886,10 +1898,10 @@ count patches with [paver?]
 11
 
 SWITCH
-912
-48
-1077
-81
+850
+53
+1015
+86
 graphicstoggle
 graphicstoggle
 0
@@ -1897,13 +1909,13 @@ graphicstoggle
 -1000
 
 PLOT
-1002
-316
-1202
-466
-plot 1
-NIL
-NIL
+1022
+265
+1222
+415
+Producers
+time
+producers
 0.0
 10.0
 0.0
@@ -1913,6 +1925,16 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot count producers with [not hidden?]"
+
+CHOOSER
+21
+109
+196
+154
+rewardtype
+rewardtype
+1 2 3
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
