@@ -119,6 +119,10 @@ setup-seed -2 0
 setup-seed 1 0
 recolor-all
 reset-ticks
+set npavers count patches with [paver?]
+set nworkers count workers
+set nproducers count producers
+set nsolarcells count solarcells
 end
 
 to go
@@ -145,6 +149,9 @@ to go
  if rewardtype = 3
  
  [worker-difference-rewards]
+  if rewardtype = 4
+
+ [worker-global-rewards]
  ;[workercanned]
  incrementproduceridlecount
  calculateglobalidletime
@@ -174,7 +181,7 @@ to setglobals
   set productivity 0
   set workerminingreward 2
   set workerdeliveryreward 5
-  set npavers 9
+  set npavers 0
   set alpha 0.1
   set discountrate 0.4
   set qinit 1
@@ -273,6 +280,53 @@ to worker-difference-rewards
   ]
 end
 
+
+to worker-global-rewards
+  ;; run workers
+  ask workers with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) ]
+  [
+  set ap workerpossibleactions
+  let prevradio-a radio-a
+  set s sensorscan
+  set aw item 0 maximumQvalueandaction Qw s ap
+  if not randpercent
+  [
+    set aw one-of ap  
+  ]
+  workerperformaction aw ;; greedily choose the action with the highest value
+   let drad discountrate * sign (radio-a - prevradio-a)
+
+  set wreward wreward + drad * ((workerbatterycapacity - wcharge) / workerbatterycapacity) ; don't die potential  
+ 
+  set wreward wreward + drad * (wregolith / workerregolithcapacity) ; go home potential
+  
+;  if (radio-a > prevradio-a)
+;  [
+;  set wreward wreward + ((workerbatterycapacity - wcharge) / workerbatterycapacity) ; don't die potential  
+;  ]
+;  if (radio-a > prevradio-a) and wregolith > 0 [set wreward wreward + (wregolith / workerregolithcapacity)] ; go home potential
+;  
+;  ]
+  ;let fakepro 0
+  ]
+  calculateproductivity
+  ask workers with [(not hidden?) and (not ( (not paver?) and wcharge = 0)) and (s != 0) ]
+  [
+    
+  set wreward wreward + 10 * (productivity)
+  
+  updateQ Qw s aw wreward ap
+  set wreward 0
+  set actionperformed 0
+  set result 0
+  ]
+end
+to-report sign [x]
+  if x = 0 [report 0]
+ ifelse x >= 0
+ [report 1]
+ [report -1]
+end
 to worker-learning
   ;figure out what the worker can dow
   
@@ -379,7 +433,7 @@ to-report initializeQactions[apl a-q]
     ;; find if a value is not in the first part of the lsit
   if not member? ?1 map first a-q
   [
-   ifelse (?1 = 8) or (?1 = 9)
+   ifelse (?1 = 8) or (?1 = 9) ; worker potential to pick stuff up
    [set a-q lput (list ?1 (10 * defaultq)) a-q]
    [set a-q lput (list ?1 defaultq) a-q]
    ;initialize an action that isn't in the list to initial q value   
@@ -470,6 +524,12 @@ to-report sensorscan
     set sensorlist lput (whatsonthepatch patch-ahead 1 ) sensorlist 
   ]
   set sensorlist lput ((ceiling (4 * (wcharge / workerbatterycapacity) )) / 4) sensorlist
+  ifelse itemheld != nobody
+  [set sensorlist lput 1 sensorlist]
+  [set sensorlist lput 0 sensorlist]
+  ifelse count workers-here > 1
+  [set sensorlist lput 1 sensorlist]
+  [set sensorlist lput 0 sensorlist]
   report sensorlist
   
   
@@ -1026,7 +1086,9 @@ end
 
 to getoffpavers
   ;;worker function to get off the paverse
-  downhill radio-a
+  ifelse random 2 > 0
+  [downhillradioa]
+  [moverandomlyonpavers]
 end
 to-report canplacepaver
   let paves neighbors4 with[paver?]
@@ -1069,11 +1131,13 @@ end
 
 to downhillradioa
   move-tousingpower patch-here
+  
   let p min-one-of neighbors [radio-a]
-  if [radio-a] of p < radio-a [
+  ifelse [radio-a] of p < radio-a [
     move-tousingpower p
     
     ]
+  [move-tousingpower one-of neighbors]
 end
 
 to downhillregolithnopavers
@@ -1665,10 +1729,10 @@ end
 GRAPHICS-WINDOW
 212
 10
-837
-656
-20
-20
+1137
+956
+30
+30
 15.0
 1
 10
@@ -1679,10 +1743,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--20
-20
--20
-20
+-30
+30
+-30
+30
 1
 1
 1
@@ -1776,8 +1840,8 @@ SLIDER
 discountrate
 discountrate
 0
-1
-0.4
+1.5
+1.4
 0.05
 1
 NIL
@@ -1792,7 +1856,7 @@ alpha
 alpha
 0
 1
-0.1
+1
 0.05
 1
 NIL
@@ -1807,7 +1871,7 @@ randompercent
 randompercent
 0
 1
-1
+0.2
 0.05
 1
 NIL
@@ -1824,7 +1888,7 @@ productivity
 0.0
 10.0
 0.0
-1.0
+0.5
 true
 false
 "" ""
@@ -1832,13 +1896,13 @@ PENS
 "default" 1.0 0 -5298144 true "" "plot productivity"
 
 MONITOR
-70
+47
 336
-158
+185
 381
 NIL
 productivity
-17
+10
 1
 11
 
@@ -1933,8 +1997,84 @@ CHOOSER
 154
 rewardtype
 rewardtype
-1 2 3
+1 2 3 4
+1
+
+MONITOR
+877
+512
+980
+557
+dead workers
+count workers with [wcharge = 0]
+17
+1
+11
+
+BUTTON
+61
+391
+164
+424
+NIL
+recolor-all
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+31
+449
+203
+482
+radiothreshold
+radiothreshold
 0
+100
+35
+1
+1
+NIL
+HORIZONTAL
+
+SWITCH
+43
+503
+184
+536
+showpaver?
+showpaver?
+0
+1
+-1000
+
+MONITOR
+1155
+688
+1214
+733
+state 1
+count workers with[ state = 1]
+17
+1
+11
+
+MONITOR
+1181
+599
+1240
+644
+state 2
+count workers with[ state = 2]
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
